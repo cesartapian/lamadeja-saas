@@ -3,6 +3,9 @@ import cors from 'cors';
 import { config } from './lib/config.js';
 import { requireAuth } from './middleware/auth.js';
 import { whatsappRouter } from './routes/whatsapp.js';
+import { pool } from './lib/database.js';
+import { conversationRouter } from './routes/conversations.js';
+import type { ErrorRequestHandler } from 'express';
 
 const app = express();
 app.disable('x-powered-by');
@@ -13,4 +16,7 @@ app.use('/webhooks/whatsapp', express.raw({ type: 'application/json', limit: '1m
 app.use(express.json({ limit: '1mb' }));
 app.get('/api/me', requireAuth, (_req, res) => res.json(res.locals.auth));
 app.get('/api/modules', requireAuth, (_req, res) => res.json({ messaging: 'scaffold', commerce: 'scaffold', agents: 'scaffold', crm: 'scaffold' }));
+app.use('/api', conversationRouter(pool, requireAuth));
+const errorHandler: ErrorRequestHandler = (_error, _req, res, _next) => { res.status(500).json({ error: 'Request failed' }); };
+app.use(errorHandler);
 app.listen(config.PORT, () => console.info(`API listening on ${config.PORT}`));
