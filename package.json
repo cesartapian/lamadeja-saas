@@ -2,5 +2,5 @@
   "name": "lamadeja-saas", "private": true, "version": "0.1.0",
   "workspaces": ["apps/*"],
   "scripts": {"dev:api":"npm run dev -w @lamadeja/api", "dev:web":"npm run dev -w @lamadeja/web", "worker":"npm run worker -w @lamadeja/api", "lint":"npm run typecheck --workspaces -- --noUnusedLocals --noUnusedParameters", "typecheck":"npm run typecheck --workspaces", "test":"npm run test -w @lamadeja/api"},
-  "engines": {"node": ">=20"}
+  "engines": {"node": ">=22"}
 }

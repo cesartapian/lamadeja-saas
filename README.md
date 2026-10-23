@@ -13,7 +13,7 @@ Independent conversational SaaS backend piloted against La Madeja as an **extern
 - Additive PostgreSQL migrations, row locking, bounded retries, database uniqueness and synthetic signature/HTTP/SQL tests.
 
 ## Setup
-1. Install Node.js 20+.
+1. Install Node.js 22+ (required by the locked Supabase SDK).
 2. Run `npm install` in the root.
 3. Copy `apps/api/.env.example` to `apps/api/.env` and `apps/web/.env.example` to `apps/web/.env`.
 4. Use **the same Supabase URL and public/anon key** as Live Manager in both files. Do not put service-role keys in frontend environment variables.

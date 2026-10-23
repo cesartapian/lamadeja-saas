@@ -23,7 +23,7 @@ Authentication still calls Supabase `auth.getUser` and enforces the email allowl
 
 ## Local setup
 
-1. Run `npm ci` with Node 22+ (Node 20+ is declared, CI validates 22).
+1. Run `npm ci` with Node 22+ (required by the locked Supabase SDK and validated in CI).
 2. Copy the two `.env.example` files as in the README. Use synthetic secrets and an isolated database while testing. Keep all real `.env` files untracked.
 3. Create a dedicated empty PostgreSQL database. Apply `packages/database/migrations/001_initial.sql`, then `002_message_processing.sql` in order using a database migration tool or `psql -v ON_ERROR_STOP=1 -f <file>`. Never target a production database. Migration 002 is transactional and additive; it intentionally fails on inconsistent existing relationships/duplicate conversations rather than silently deleting or merging records. Back up and reconcile such data first. Legacy contacts retain nullable store/external IDs; newly processed contacts always have both.
 4. Insert the organization/store IDs configured in the API environment, add your Supabase user UUID to `organization_members`, and register a WhatsApp channel. Use the synthetic fixture below for an isolated manual setup; substitute only the membership UUID with your own authenticated user ID.
