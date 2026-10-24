@@ -4,6 +4,14 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
+# Si Codex sube otro commit mientras Claude revisa, se cancela la revisión vieja
+concurrency:
+  group: revision-claude-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  MAX_REVISIONES: 3   # máximo de revisiones con "❌" antes de pedir ayuda humana
+
 jobs:
   revisar:
     # No revisa PRs en borrador
@@ -12,6 +20,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
       id-token: write
     steps:
       - name: Traer el código
@@ -35,20 +44,56 @@ jobs:
 
             Pasos:
             1. Lee el diff con: gh pr diff ${{ github.event.pull_request.number }}
-            2. Si necesitas contexto, lee los archivos relacionados del repo.
-            3. Revisa en este orden de prioridad:
+            2. Si ya hay revisiones tuyas anteriores en el PR (gh pr view --comments),
+               verifica si Codex corrigió esos puntos. No repitas puntos ya resueltos.
+            3. Si necesitas contexto, lee los archivos relacionados del repo.
+            4. Revisa en este orden de prioridad:
                - Bugs reales y errores de lógica
                - Casos borde (null/undefined, listas vacías, stock en 0, montos negativos)
                - Seguridad: claves o tokens en el código, datos expuestos,
                  validación de entradas, permisos/RLS de Supabase
                - Tipos de TypeScript incorrectos o uso de `any` que oculte errores
                - Archivos modificados que no tienen relación con el PR
-            4. Ignora detalles menores de estilo o formato.
+            5. Ignora detalles menores de estilo o formato. Solo pide cambios
+               por problemas reales; si lo que queda es menor, aprueba.
 
             Publica UN solo comentario con:
               gh pr comment ${{ github.event.pull_request.number }} --body "<tu revisión>"
 
-            Formato del comentario (en español):
-            - Si está bien:  "✅ Aprobado" + 1 o 2 líneas de por qué.
-            - Si hay problemas: "❌ Requiere cambios" + lista numerada, cada punto con
-              archivo:línea, qué está mal y cómo corregirlo.
+            Formato del comentario (en español). La PRIMERA línea debe ser exactamente una de estas:
+            - "✅ Aprobado"  + 1 o 2 líneas de por qué.
+            - "❌ Requiere cambios" + lista numerada, cada punto con archivo:línea,
+              qué está mal y cómo corregirlo. Escríbelo como instrucciones claras
+              para que otro agente las ejecute.
+            No menciones a @codex en tu comentario.
+
+      - name: Si hay cambios pendientes, pedírselos a Codex
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Token personal de César: Codex solo responde a menciones de personas, no de bots
+          CODEX_TOKEN: ${{ secrets.CODEX_TRIGGER_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          COMENTARIOS=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '[.[] | select(.user.login == "claude[bot]")]' | jq -s 'add // []')
+          ULTIMO=$(echo "$COMENTARIOS" | jq -r 'last | .body // ""')
+          URL=$(echo "$COMENTARIOS" | jq -r 'last | .html_url // ""')
+          RONDAS=$(echo "$COMENTARIOS" | jq '[.[] | select(.body | startswith("❌"))] | length')
+
+          if [[ "$ULTIMO" != ❌* ]]; then
+            echo "Aprobado o sin revisión nueva. Nada que hacer."
+            exit 0
+          fi
+
+          if [ "$RONDAS" -ge "$MAX_REVISIONES" ]; then
+            gh pr comment "$PR" --body "⚠️ Se alcanzaron $RONDAS revisiones con cambios pendientes. Detengo el ciclo automático: este PR necesita revisión humana."
+            exit 0
+          fi
+
+          if [ -z "$CODEX_TOKEN" ]; then
+            echo "::warning::Falta el secret CODEX_TRIGGER_TOKEN; no se puede llamar a Codex."
+            exit 0
+          fi
+
+          GH_TOKEN="$CODEX_TOKEN" gh pr comment "$PR" --body "@codex corrige en esta misma rama todos los puntos de la revisión de Claude: $URL
+          Haz commit y push a este PR. No hagas merge ni abras un PR nuevo. (Ronda $RONDAS de $MAX_REVISIONES)"
