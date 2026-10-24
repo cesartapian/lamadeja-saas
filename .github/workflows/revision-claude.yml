@@ -18,11 +18,15 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write        # necesario para hacer merge
       pull-requests: write
       issues: write
+      checks: read
       id-token: write
     steps:
+      - name: Marcar inicio de la revisión
+        run: echo "INICIO=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Traer el código
         uses: actions/checkout@v4
         with:
@@ -67,24 +71,54 @@ jobs:
               para que otro agente las ejecute.
             No menciones a @codex en tu comentario.
 
-      - name: Si hay cambios pendientes, pedírselos a Codex
+      - name: Decidir siguiente paso (✅ merge / ❌ Codex corrige)
         env:
           GH_TOKEN: ${{ github.token }}
           # Token personal de César: Codex solo responde a menciones de personas, no de bots
           CODEX_TOKEN: ${{ secrets.CODEX_TRIGGER_TOKEN }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           COMENTARIOS=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '[.[] | select(.user.login == "claude[bot]")]' | jq -s 'add // []')
           ULTIMO=$(echo "$COMENTARIOS" | jq -r 'last | .body // ""')
+          FECHA=$(echo "$COMENTARIOS" | jq -r 'last | .created_at // ""')
           URL=$(echo "$COMENTARIOS" | jq -r 'last | .html_url // ""')
           RONDAS=$(echo "$COMENTARIOS" | jq '[.[] | select(.body | startswith("❌"))] | length')
 
-          if [[ "$ULTIMO" != ❌* ]]; then
-            echo "Aprobado o sin revisión nueva. Nada que hacer."
+          # Solo actuar sobre una revisión hecha en ESTA ejecución (no una vieja)
+          if [ -z "$FECHA" ] || [[ "$FECHA" < "$INICIO" ]]; then
+            echo "No hay revisión nueva de Claude en esta ejecución. Nada que hacer."
             exit 0
           fi
 
+          # ---------- ✅ APROBADO: esperar los demás checks y hacer merge ----------
+          if [[ "$ULTIMO" == ✅* ]]; then
+            echo "Aprobado. Esperando que terminen los demás checks..."
+            for i in $(seq 1 60); do   # hasta ~15 minutos
+              CHECKS=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate --jq '.check_runs[] | select(.name != "revisar") | [.status, (.conclusion // "")] | @tsv')
+              PENDIENTES=$(echo "$CHECKS" | grep -cv '^completed' || true)
+              FALLIDOS=$(echo "$CHECKS" | grep -cE 'failure|cancelled|timed_out|action_required' || true)
+              if [ "$FALLIDOS" -gt 0 ]; then
+                gh pr comment "$PR" --body "⚠️ Claude aprobó, pero hay checks fallidos (tests/build). No hago merge: revisa el PR."
+                exit 0
+              fi
+              [ "$PENDIENTES" -eq 0 ] && break
+              sleep 15
+            done
+            if [ "$PENDIENTES" -gt 0 ]; then
+              gh pr comment "$PR" --body "⚠️ Claude aprobó, pero los checks no terminaron a tiempo. No hago merge automático."
+              exit 0
+            fi
+            if gh pr merge "$PR" --merge --match-head-commit "$SHA"; then
+              echo "Merge realizado."
+            else
+              gh pr comment "$PR" --body "⚠️ Claude aprobó, pero el merge automático falló (conflictos, rama protegida o PR que modifica workflows). Requiere merge manual."
+            fi
+            exit 0
+          fi
+
+          # ---------- ❌ REQUIERE CAMBIOS: pedírselos a Codex ----------
           if [ "$RONDAS" -ge "$MAX_REVISIONES" ]; then
             gh pr comment "$PR" --body "⚠️ Se alcanzaron $RONDAS revisiones con cambios pendientes. Detengo el ciclo automático: este PR necesita revisión humana."
             exit 0
