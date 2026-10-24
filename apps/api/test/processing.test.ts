@@ -27,7 +27,7 @@ function payload(id = 'wamid.synthetic') {
 }
 async function fixture() {
   const db = new PGlite();
-  for (const name of ['001_initial.sql', '002_message_processing.sql']) {
+  for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql']) {
     const sql = await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8');
     // pgcrypto extension is unavailable in WASM; gen_random_uuid is built into PostgreSQL.
     await db.exec(sql.replace('create extension if not exists pgcrypto;', ''));
@@ -93,8 +93,20 @@ test('signed HTTP webhook -> durable inbox -> worker -> authenticated tenant-sco
     const response = await fetch(`${url}/api/conversations?organizationId=${other}`, { headers });
     const conversations = (await response.json()).conversations;
     assert.equal(conversations.length, 1);
+    assert.equal(conversations[0].contact_name, 'Changed');
+    assert.equal(conversations[0].last_message, 'Hola');
+    assert.equal(conversations[0].contact_phone, '56912345678');
     const messages = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages`, { headers })).json();
     assert.equal(messages.messages[0].body, 'Hola');
+    await f.query(`insert into messages(organization_id,conversation_id,direction,body,created_at) values($1,$2,'in','Earlier','2025-01-01T13:00:00Z'),($1,$2,'in','Previous','2025-01-01T14:00:00Z')`, [org, conversations[0].id]);
+    const newest = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc`, { headers })).json();
+    assert.equal(newest.messages[0].body, 'Hola'); assert.equal(newest.hasMore, true); assert.equal(newest.nextOffset, 1);
+    const previous = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc&offset=1`, { headers })).json();
+    assert.equal(previous.messages[0].body, 'Previous');
+    const earliest = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc&offset=2`, { headers })).json();
+    assert.equal(earliest.messages[0].body, 'Earlier'); assert.equal(earliest.hasMore, false);
+    assert.equal((await fetch(`${url}/api/conversations?limit=101`, { headers })).status, 400);
+    assert.equal((await fetch(`${url}/api/conversations/${conversations[0].id}/messages?order=invalid`, { headers })).status, 400);
     assert.equal((await fetch(`${url}/api/contacts/${conversations[0].contact_id}`, { headers })).status, 200);
     const foreign = await f.query('insert into contacts(organization_id,store_id,external_contact_id) values($1,$2,\'56999999999\') returning id', [other, otherStore]);
     assert.equal((await fetch(`${url}/api/contacts/${(foreign.rows[0] as {id:string}).id}`, { headers })).status, 404);

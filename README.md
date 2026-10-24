@@ -1,5 +1,7 @@
 # La Madeja SaaS — WhatsApp phase 2
 
+The read-only React inbox is documented in [phase 3](docs/PHASE_3_INBOX.md): conversation/contact previews, paginated history, responsive navigation and browser tests. Apply additive migration 003 after the phase 2 migrations.
+
 Phase 2 adds recoverable inbox processing, tenant-scoped contacts/conversations/messages, authenticated read APIs, membership enforcement and synthetic integration tests. See [phase 2 setup, migration and architecture notes](docs/PHASE_2.md) for the current instructions. Start the independent worker with `npm run worker` after applying migrations 001 and 002 in an isolated database.
 
 Independent conversational SaaS backend piloted against La Madeja as an **external Shopify client**. The La Madeja storefront and Live Manager remain in their existing repositories and production environments. **Not production-ready**.
