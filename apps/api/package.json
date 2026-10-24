@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "worker:outbox": "tsx src/outboxWorker.ts",
     "worker": "tsx src/worker.ts",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",

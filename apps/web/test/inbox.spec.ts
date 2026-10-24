@@ -152,3 +152,77 @@ test('keyboard can scroll long history and narrow reflow does not overflow', asy
   if ((await page.locator('.contact-details').getAttribute('open')) === null) await page.keyboard.press('Enter');
   await expect(page.getByText('+56912345678', { exact: true })).toBeVisible();
 });
+
+test('simulation composer shows durable queue states without claiming a real send', async ({ page }) => {
+  await authenticate(page);
+  let items: { id: string; conversation_id: string; body: string; status: string; attempt_count: number; max_attempts: number; created_at: string; completed_at: string | null }[] = [];
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/outbox/capabilities') return route.fulfill({ json: { mode: 'simulated' } });
+    if (path.endsWith('/outbox')) {
+      if (route.request().method() === 'POST') {
+        const input = route.request().postDataJSON();
+        expect(input.body).toBe('Respuesta de prueba');
+        expect(input.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+        items = [{ id: 'queued', conversation_id: first, body: input.body, status: 'pending', attempt_count: 0, max_attempts: 5, created_at: stamp, completed_at: null }];
+        return route.fulfill({ status: 202, json: { item: items[0] } });
+      }
+      return route.fulfill({ json: { items, hasMore: false, nextOffset: 25 } });
+    }
+    return apiRoute(route);
+  });
+  await page.goto('/'); await openFirst(page);
+  const composer = page.getByRole('region', { name: 'Bandeja de salida simulada' });
+  await expect(composer.getByRole('button', { name: 'Simular envío' })).toBeDisabled();
+  await page.getByLabel('Mensaje de prueba', { exact: true }).fill('Respuesta de prueba');
+  await composer.getByRole('button', { name: 'Simular envío' }).click();
+  await expect(composer.getByText('Pendiente · Intentos 0/5')).toBeVisible();
+  await expect(page.getByLabel('Mensaje de prueba', { exact: true })).toHaveValue('');
+  items[0].status = 'simulated'; items[0].attempt_count = 1; items[0].completed_at = stamp;
+  await composer.getByRole('button', { name: 'Actualizar simulaciones' }).click();
+  await expect(composer.getByText('Simulado · sin envío real · Intentos 1/5')).toBeVisible();
+  await expect(composer.getByText('Solo pruebas: ningún mensaje se envía a WhatsApp.')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+});
+
+test('ambiguous submission retries keep the same idempotency key and draft', async ({ page }) => {
+  await authenticate(page);
+  const keys: string[] = [];
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/outbox/capabilities') return route.fulfill({ json: { mode: 'simulated' } });
+    if (path.endsWith('/outbox')) {
+      if (route.request().method() === 'POST') {
+        keys.push(route.request().postDataJSON().idempotencyKey);
+        if (keys.length === 1) return route.abort();
+        return route.fulfill({ status: 200, json: { item: { id: 'existing' } } });
+      }
+      return route.fulfill({ json: { items: [], hasMore: false, nextOffset: 25 } });
+    }
+    return apiRoute(route);
+  });
+  await page.goto('/'); await openFirst(page);
+  await page.getByLabel('Mensaje de prueba', { exact: true }).fill('No duplicar');
+  await page.getByRole('button', { name: 'Simular envío' }).click();
+  await expect(page.getByRole('alert')).toContainText('conserva la misma solicitud');
+  await expect(page.getByLabel('Mensaje de prueba', { exact: true })).toHaveValue('No duplicar');
+  await page.getByRole('button', { name: 'Simular envío' }).click();
+  await expect(page.getByLabel('Mensaje de prueba', { exact: true })).toHaveValue('');
+  expect(keys).toHaveLength(2); expect(keys[0]).toBe(keys[1]);
+});
+
+test('disabled simulation keeps inbox read-only; exhausted jobs are labeled as failures', async ({ page }) => {
+  await authenticate(page);
+  let mode = 'disabled';
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/outbox/capabilities') return route.fulfill({ json: { mode } });
+    if (path.endsWith('/outbox')) return route.fulfill({ json: { items: [{ id: 'failed', body: 'Prueba fallida', status: 'failed', attempt_count: 2, max_attempts: 2 }], hasMore: false, nextOffset: 25 } });
+    return apiRoute(route);
+  });
+  await page.goto('/'); await openFirst(page);
+  await expect(page.getByText('Bandeja de solo lectura. La simulación está deshabilitada.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Simular envío' })).toHaveCount(0);
+  mode = 'simulated'; await page.reload(); await openFirst(page);
+  await expect(page.getByText('Falló la simulación · Intentos 2/2')).toBeVisible();
+});

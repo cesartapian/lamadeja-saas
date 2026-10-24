@@ -4,14 +4,16 @@ export interface Conversation {
 }
 export interface Message { id: string; direction: 'in' | 'out'; body: string | null; message_type: string; created_at: string; sent_at: string | null }
 export interface Contact { id: string; display_name: string | null; external_contact_id: string | null; created_at: string; updated_at: string }
+export interface OutboxItem { id: string; conversation_id: string; body: string; status: 'pending' | 'processing' | 'retrying' | 'failed' | 'simulated'; attempt_count: number; max_attempts: number; created_at: string; completed_at: string | null }
 export interface Page<T> { items: T[]; hasMore: boolean; nextOffset: number }
 export class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 export function createApi(token: string, denied: (status: number) => void) {
-  async function request<T>(path: string, signal: AbortSignal): Promise<T> {
+  async function request<T>(path: string, signal: AbortSignal, body?: object): Promise<T> {
     let response: Response;
     try {
       response = await fetch(`${import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '')}${path}`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+        method: body ? 'POST' : 'GET', body: body ? JSON.stringify(body) : undefined,
+        headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
       });
     } catch (error) {
       if (signal.aborted) throw error;
@@ -31,6 +33,9 @@ export function createApi(token: string, denied: (status: number) => void) {
       const data = await request<{ messages: Message[]; hasMore: boolean; nextOffset: number }>(`/api/conversations/${encodeURIComponent(id)}/messages?limit=50&order=desc&offset=${offset}`, signal);
       return { items: data.messages, hasMore: data.hasMore, nextOffset: data.nextOffset };
     },
+    capabilities: (signal: AbortSignal) => request<{ mode: 'simulated' | 'disabled' }>('/api/outbox/capabilities', signal),
+    outbox: (id: string, offset: number, signal: AbortSignal) => request<Page<OutboxItem>>(`/api/conversations/${encodeURIComponent(id)}/outbox?offset=${offset}`, signal),
+    enqueue: (id: string, body: string, idempotencyKey: string, signal: AbortSignal) => request<{ item: OutboxItem }>(`/api/conversations/${encodeURIComponent(id)}/outbox`, signal, { body, idempotencyKey }),
     contact: (id: string, signal: AbortSignal) => request<{ contact: Contact }>(`/api/contacts/${encodeURIComponent(id)}`, signal),
   };
 }

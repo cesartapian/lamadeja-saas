@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 const schema = z.object({
+  OUTBOX_MODE: z.enum(['disabled', 'simulated']).default('disabled'),
   DATABASE_URL: z.string().min(1).optional(),
   WORKER_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(100).default(5),
   WORKER_RETRY_SECONDS: z.coerce.number().int().min(1).max(3600).default(30),
