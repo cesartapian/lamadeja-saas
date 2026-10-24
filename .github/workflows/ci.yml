@@ -1,4 +1,4 @@
-name: Validate phase 2
+name: Validate SaaS
 on: [push, pull_request]
 permissions:
   contents: read
@@ -30,4 +30,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - run: npm run build -w @lamadeja/web
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -w @lamadeja/web
       - run: npm audit --audit-level=high
