@@ -1,0 +1,54 @@
+name: Revisión Claude
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  revisar:
+    # No revisa PRs en borrador
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Traer el código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Revisión con Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Usa tu suscripción de Claude (claude setup-token), no la API
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Read,Grep,Glob"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR: #${{ github.event.pull_request.number }}
+
+            Eres el revisor de código. Otro agente (Codex) escribió este Pull Request.
+            Tú NO modificas código: solo revisas y comentas.
+
+            Pasos:
+            1. Lee el diff con: gh pr diff ${{ github.event.pull_request.number }}
+            2. Si necesitas contexto, lee los archivos relacionados del repo.
+            3. Revisa en este orden de prioridad:
+               - Bugs reales y errores de lógica
+               - Casos borde (null/undefined, listas vacías, stock en 0, montos negativos)
+               - Seguridad: claves o tokens en el código, datos expuestos,
+                 validación de entradas, permisos/RLS de Supabase
+               - Tipos de TypeScript incorrectos o uso de `any` que oculte errores
+               - Archivos modificados que no tienen relación con el PR
+            4. Ignora detalles menores de estilo o formato.
+
+            Publica UN solo comentario con:
+              gh pr comment ${{ github.event.pull_request.number }} --body "<tu revisión>"
+
+            Formato del comentario (en español):
+            - Si está bien:  "✅ Aprobado" + 1 o 2 líneas de por qué.
+            - Si hay problemas: "❌ Requiere cambios" + lista numerada, cada punto con
+              archivo:línea, qué está mal y cómo corregirlo.
