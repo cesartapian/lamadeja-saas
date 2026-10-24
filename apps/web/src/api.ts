@@ -10,7 +10,7 @@ export function createApi(token: string, denied: (status: number) => void) {
   async function request<T>(path: string, signal: AbortSignal): Promise<T> {
     let response: Response;
     try {
-      response = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
+      response = await fetch(`${import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '')}${path}`, {
         headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
       });
     } catch (error) {
