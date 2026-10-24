@@ -1,37 +1,36 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createClient, type Session } from '@supabase/supabase-js';
+import type { Session, Subscription } from '@supabase/supabase-js';
+import { supabase, configured, restoreSession, beginGoogleLogin } from './auth';
 import { Inbox } from './Inbox';
 import './styles.css';
 
-const configured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY && import.meta.env.VITE_API_URL);
-const supabase = configured ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-}) : null;
 function App() {
   const [session, setSession] = useState<Session | null>(null), [loading, setLoading] = useState(true);
   const [error, setError] = useState(''), [denied, setDenied] = useState<number | null>(null), [busy, setBusy] = useState(false);
   const onDenied = useCallback((status: number) => setDenied(status), []);
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
-    let active = true, revision = 0;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
-      revision++; if (active) { setSession(next); setDenied(null); setLoading(false); }
+    const client = supabase;
+    if (!client) { setLoading(false); return; }
+    let active = true, subscription: Subscription | undefined;
+    void restoreSession().then(result => {
+      if (!active) return;
+      setSession(result.session); setError(result.error); setLoading(false);
+      // Subscribe after bootstrap so INITIAL_SESSION cannot reveal the inbox
+      // while an OAuth callback is still being exchanged.
+      subscription = client.auth.onAuthStateChange((event, next) => {
+        if (!active) return;
+        setSession(next); setDenied(null);
+        if (event === 'SIGNED_IN') setError('');
+      }).data.subscription;
     });
-    const initialRevision = revision;
-    supabase.auth.getSession().then(({ data, error: failure }) => {
-      if (active && revision === initialRevision) {
-        setSession(data.session); setLoading(false);
-        if (failure) setError('No pudimos recuperar tu sesión. Vuelve a iniciar sesión.');
-      }
-    }).catch(() => { if (active) { setLoading(false); setError('No pudimos recuperar tu sesión. Vuelve a iniciar sesión.'); } });
-    return () => { active = false; subscription.unsubscribe(); };
+    return () => { active = false; subscription?.unsubscribe(); };
   }, []);
   async function login() {
     if (!supabase) return;
     setBusy(true); setError('');
     try {
-      const { error: failure } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+      const { error: failure } = await beginGoogleLogin();
       if (failure) throw failure;
     } catch { setError('No pudimos abrir Google. Comprueba tu conexión y vuelve a intentarlo.'); }
     finally { setBusy(false); }
