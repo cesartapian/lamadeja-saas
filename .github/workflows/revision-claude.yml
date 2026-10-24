@@ -97,7 +97,7 @@ jobs:
             echo "Aprobado. Esperando que terminen los demás checks..."
             for i in $(seq 1 60); do   # hasta ~15 minutos
               CHECKS=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate --jq '.check_runs[] | select(.name != "revisar") | [.status, (.conclusion // "")] | @tsv')
-              PENDIENTES=$(echo "$CHECKS" | grep -cv '^completed' || true)
+              PENDIENTES=$(echo "$CHECKS" | grep -v "^$" | grep -cv '^completed' || true)
               FALLIDOS=$(echo "$CHECKS" | grep -cE 'failure|cancelled|timed_out|action_required' || true)
               if [ "$FALLIDOS" -gt 0 ]; then
                 gh pr comment "$PR" --body "⚠️ Claude aprobó, pero hay checks fallidos (tests/build). No hago merge: revisa el PR."
