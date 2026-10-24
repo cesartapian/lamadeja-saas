@@ -25,8 +25,16 @@ The selected organization is **Cesartap-Free** (`ecxrdywsyvhpvcttprmt`). Supabas
 ## Private configuration still needed
 
 1. In the development project's **Connect** panel, obtain the PostgreSQL connection URI. Set its password locally if required through the dashboard, then save the URI as `DATABASE_URL` in `apps/api/.env`. Prefer the session pooler connection for a persistent Node process if the workstation cannot reach direct IPv6. Do not paste its password into chat, commit it or use a service-role client key as a database password. See [connection guidance](https://supabase.com/docs/guides/database/connecting-to-postgres).
-2. Replace the deliberately nonfunctional `authorized@example.invalid` entry in `ALLOWED_EMAILS` with your development account email. This keeps access closed until configured.
-3. The user does not yet have a Google OAuth development client. Leave Google login pending. When available, configure it only in this development project using the [authentication guide](AUTHENTICATION.md). Add the actual user's UUID to `organization_members` after that user exists. Never seed a fake Auth user or weaken email/membership checks to bypass setup.
+2. Two development account addresses selected by the user are now configured in the private local `ALLOWED_EMAILS` value. Addresses are intentionally omitted from the public repository. Google accounts still need to sign in and receive organization membership after their verified Auth users exist.
+3. A separate Google Cloud project, `lamadeja-saas-dev-20261024` (display name `La Madeja SaaS Dev`), was created with explicit user authorization. Its OAuth application configuration was created in testing mode after the user accepted Google's user-data policy. No billing account was linked through these actions. The OAuth client creation, test-user save, provider secret entry and real login are separate pending steps; a prepared form is not proof of completion. Configure this development project using the [authentication guide](AUTHENTICATION.md). Never seed a fake Auth user or weaken email/membership checks to bypass setup.
+
+On Windows, `scripts/set-dev-database.ps1` securely prompts for the development database password and writes an encoded session-pooler URI with `sslmode=verify-full`. It refuses an environment file for another Supabase project, refuses to overwrite an existing connection unless `-Replace` is explicitly provided, and does not print credentials. The pooler endpoint was read from this project's Connect panel; no paid IPv4 add-on is needed. Run it from any folder using its absolute path, or from the repository root:
+
+```powershell
+.\scripts\set-dev-database.ps1
+```
+
+The password must first be set by the user in the development project's dashboard. Never pass a real plaintext password on the command line or in chat. The optional SecureString parameter and alternate file argument exist for isolated automated fixture checks; the normal operator path is the hidden prompt. The helper was checked using synthetic special characters, verified-TLS output, a wrong-project fixture and an existing-connection fixture. These checks do not replace testing the actual saved connection.
 
 The API can answer health checks and reject unauthenticated/invalid sessions without `DATABASE_URL`. Successful authenticated reads and worker persistence require the private database connection. The worker intentionally refuses to start without it. New webhook deliveries are not acknowledged as durable when database persistence is unconfigured.
 
