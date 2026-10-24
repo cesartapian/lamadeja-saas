@@ -7,6 +7,7 @@
 | 1. Base, identidad y aislamiento | Implementada | API/web, PKCE, correo y membresía; PR #6 integrado | Login con cuenta Google real |
 | 2. Recepción e inbox durable | Implementada | Pruebas HMAC, SQL, deduplicación y recuperación | Recorrido con servicios reales; no hay webhooks productivos |
 | 3. Bandeja de conversaciones | Implementada | Pruebas de escritorio/móvil, paginación, contactos y errores | Validación con usuario y datos del entorno aislado |
+| Acceso desde Live Manager | Código preparado en repositorio de origen; por revisar | Origen `livemanager.lamadeja.cl`; 7 pruebas y build Live Manager aprobados | URL SaaS, revisión/despliegue, configuración OAuth y recorrido real |
 | 4. Outbox simulada | Implementada en esta rama; por revisar | Cola persistente, compositor, idempotencia y worker | Revisión, integración y aplicación de migración 004 al entorno aislado |
 | Supabase / Google reales | Validación pendiente | Preparación en PR #7 y #8; diagnóstico TLS en #9 | Red PostgreSQL, conexión privada, CA si corresponde, OAuth y membresía real |
 | Envío WhatsApp controlado | No iniciado | Contrato de simulación documentado | Autorización sandbox, políticas, transporte, reconciliación y recibos |
@@ -21,6 +22,12 @@
 - La prueba de concurrencia comprobó bloqueo, procesamiento paralelo y recuperación tras desconexión.
 
 Esta evidencia no valida Supabase remoto ni Google real. La migración 004 solo se ejecutó en bases de prueba; ninguna base cloud o productiva fue modificada.
+
+## Enlace desde Live Manager
+
+El origen confirmado es `https://livemanager.lamadeja.cl`. Se preparó una entrada **Conversaciones** en el repositorio `live-manager-cl`, configurada mediante `VITE_SAAS_APP_URL` y oculta hasta tener un destino válido. La URL publicada del nuevo frontend sigue sin confirmar. El enlace no comparte sesiones ni transmite tokens: el SaaS restaura su propia sesión o pide Google mediante PKCE.
+
+[Recorrido, activación y validación pendientes](LIVE_MANAGER_ENTRY.md). Código local preparado; no publicado ni desplegado.
 
 ## Pendiente manual: migración 004 en Supabase
 
