@@ -98,13 +98,33 @@ test('signed HTTP webhook -> durable inbox -> worker -> authenticated tenant-sco
     assert.equal(conversations[0].contact_phone, '56912345678');
     const messages = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages`, { headers })).json();
     assert.equal(messages.messages[0].body, 'Hola');
-    await f.query(`insert into messages(organization_id,conversation_id,direction,body,created_at) values($1,$2,'in','Earlier','2025-01-01T13:00:00Z'),($1,$2,'in','Previous','2025-01-01T14:00:00Z')`, [org, conversations[0].id]);
+    await f.query(`insert into messages(organization_id,conversation_id,direction,body,created_at) values($1,$2,'in','Earlier','2023-01-01T13:00:00Z'),($1,$2,'in','Previous','2023-01-01T14:00:00Z')`, [org, conversations[0].id]);
     const newest = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc`, { headers })).json();
     assert.equal(newest.messages[0].body, 'Hola'); assert.equal(newest.hasMore, true); assert.equal(newest.nextOffset, 1);
     const previous = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc&offset=1`, { headers })).json();
     assert.equal(previous.messages[0].body, 'Previous');
     const earliest = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc&offset=2`, { headers })).json();
     assert.equal(earliest.messages[0].body, 'Earlier'); assert.equal(earliest.hasMore, false);
+    // Provider time wins over ingestion time; equal effective times use the ID.
+    await f.query(`insert into messages(id,organization_id,conversation_id,direction,body,sent_at,created_at) values
+      ('00000000-0000-4000-8000-000000000010',$1,$2,'in','Tie lower','2025-01-01T00:00:00Z','2027-01-01T00:00:00Z'),
+      ('00000000-0000-4000-8000-000000000011',$1,$2,'in','Tie higher',null,'2025-01-01T00:00:00Z'),
+      ('00000000-0000-4000-8000-000000000012',$1,$2,'in','Delayed old message','2022-01-01T00:00:00Z','2028-01-01T00:00:00Z')`, [org, conversations[0].id]);
+    const expected = ['Delayed old message', 'Earlier', 'Previous', 'Hola', 'Tie lower', 'Tie higher'];
+    for (const order of ['asc', 'desc']) {
+      const expectedOrder = order === 'asc' ? expected : [...expected].reverse();
+      const result = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?order=${order}`, { headers })).json();
+      assert.deepEqual(result.messages.map((message: { body: string }) => message.body), expectedOrder);
+      const page = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?order=${order}&limit=1&offset=${order === 'asc' ? 5 : 1}`, { headers })).json();
+      assert.equal(page.messages[0].body, order === 'asc' ? 'Tie higher' : 'Tie lower');
+    }
+    const latest = (await (await fetch(`${url}/api/conversations`, { headers })).json()).conversations[0];
+    assert.equal(latest.last_message, 'Tie higher');
+    assert.equal(new Date(latest.last_message_at).toISOString(), '2025-01-01T00:00:00.000Z');
+    await f.query("delete from messages where id='00000000-0000-4000-8000-000000000011'");
+    const providerLatest = (await (await fetch(`${url}/api/conversations`, { headers })).json()).conversations[0];
+    assert.equal(providerLatest.last_message, 'Tie lower');
+    assert.equal(new Date(providerLatest.last_message_at).toISOString(), '2025-01-01T00:00:00.000Z');
     assert.equal((await fetch(`${url}/api/conversations?limit=101`, { headers })).status, 400);
     assert.equal((await fetch(`${url}/api/conversations/${conversations[0].id}/messages?order=invalid`, { headers })).status, 400);
     assert.equal((await fetch(`${url}/api/contacts/${conversations[0].contact_id}`, { headers })).status, 200);
