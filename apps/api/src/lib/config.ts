@@ -3,6 +3,10 @@ import { z } from 'zod';
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
+  WORKER_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(100).default(5),
+  WORKER_RETRY_SECONDS: z.coerce.number().int().min(1).max(3600).default(30),
+  WORKER_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(15000),
+  WORKER_POLL_MS: z.coerce.number().int().min(100).max(60000).default(1000),
   PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().url(),
   SUPABASE_URL: z.string().url(),
