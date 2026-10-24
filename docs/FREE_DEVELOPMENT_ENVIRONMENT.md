@@ -36,6 +36,32 @@ On Windows, `scripts/set-dev-database.ps1` securely prompts for the development 
 
 The password must first be set by the user in the development project's dashboard. Never pass a real plaintext password on the command line or in chat. The optional SecureString parameter and alternate file argument exist for isolated automated fixture checks; the normal operator path is the hidden prompt. The helper was checked using synthetic special characters, verified-TLS output, a wrong-project fixture and an existing-connection fixture. These checks do not replace testing the actual saved connection.
 
+### Verified PostgreSQL TLS and CA configuration
+
+Keep `sslmode=verify-full`: it validates both the certificate chain and the pooler hostname. A missing CA is a trust configuration problem, not a reason to use `no-verify`, `rejectUnauthorized: false`, or `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+
+If the connection reports an untrusted certificate, download the current **CA certificate** from this development project's Supabase dashboard (Database settings / SSL configuration). Use the certificate for the selected connection endpoint; do not trust a certificate copied from an error or an arbitrary download. Store the PEM outside the repository, for example `C:\Users\YOUR_USER\.supabase\dev-ca.crt`, and keep that file on the machine running the API/worker. Never supply a private key.
+
+The helper can add an encoded `sslrootcert` file path to the private URI while retaining `sslmode=verify-full`:
+
+```powershell
+.\scripts\set-dev-database.ps1 -CaCertificate "$HOME\.supabase\dev-ca.crt" -Replace
+$env:DEV_SUPABASE_PROJECT_REF = 'ropciikoozdbvsmiulhh'
+node scripts/check-dev-database.mjs
+```
+
+Use `-Replace` only when deliberately updating an existing development URI. The helper prompts for the password again; no plaintext password belongs on the command line. It checks that the file resembles a certificate; the connection check validates actual trust and hostname. `pg` already supports `sslrootcert`, so both API and worker use the same configuration without an application-level TLS override. On other platforms, add `sslrootcert` with the URL-encoded absolute PEM path to the private URI. Paths are machine-specific and must be updated when moving environments.
+
+Alternatively, launch Node with `NODE_EXTRA_CA_CERTS` pointing to the trusted PEM. Set it in the **parent shell before starting Node**; setting it only in an application `.env` is too late for Node's startup trust loading. Restart API and worker after changing trust configuration.
+
+Run the diagnostic from the repository root. It accepts only the explicitly selected development project and session pooler, requires verified TLS, applies connection/query timeouts and read-only session defaults, and queries only TLS session metadata. It never prints the connection URI, password or underlying provider error. A pass confirms database authentication and verified TLS, not Google OAuth, tenant membership or full worker processing. For an expired certificate or hostname mismatch, correct the endpoint/certificate rather than weakening verification. If the supplied CA still fails, confirm the current pooler chain with Supabase's connection guidance.
+
+The TLS regression test uses temporary synthetic certificates and verifies trusted success, untrusted-certificate rejection and hostname-mismatch rejection:
+
+```text
+node --test scripts/test/dev-database.test.mjs
+```
+
 The API can answer health checks and reject unauthenticated/invalid sessions without `DATABASE_URL`. Successful authenticated reads and worker persistence require the private database connection. The worker intentionally refuses to start without it. New webhook deliveries are not acknowledged as durable when database persistence is unconfigured.
 
 ## Local commands
