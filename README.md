@@ -1,4 +1,6 @@
-# La Madeja SaaS — WhatsApp phase 2
+# La Madeja SaaS — inbox and simulated outbox
+
+Progress by phase is available in the [phase status](docs/PROGRESS.md) and [interactive dashboard](docs/progress.html). The [phase 4 simulated outbox](docs/PHASE_4_OUTBOX.md) adds durable test replies and a simulation worker; real WhatsApp sending remains disabled.
 
 The read-only React inbox is documented in [phase 3](docs/PHASE_3_INBOX.md): conversation/contact previews, paginated history, responsive navigation and browser tests. Apply additive migration 003 after the phase 2 migrations.
 

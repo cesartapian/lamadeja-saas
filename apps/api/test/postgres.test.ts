@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
+import { processNextOutbox } from '../src/lib/processOutbox.js';
 import { processNext } from '../src/lib/processInbox.js';
 
 test('PostgreSQL: independent workers skip locked rows and recover disconnected transactions', { skip: !process.env.TEST_DATABASE_URL }, async () => {
@@ -14,7 +15,7 @@ test('PostgreSQL: independent workers skip locked rows and recover disconnected 
   const options = { maxAttempts: 3, retrySeconds: 1, timeoutMs: 15000 };
   try {
     await admin.query(`create schema ${schema}`);
-    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql']) {
+    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql']) {
       await pool.query(await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8'));
     }
     await pool.query('insert into organizations(id,name) values($1,\'Synthetic\')', [org]);
@@ -40,6 +41,28 @@ test('PostgreSQL: independent workers skip locked rows and recover disconnected 
     assert.equal((await pool.query('select * from messages')).rowCount, 1);
     assert.equal((await pool.query('select * from contacts')).rowCount, 1);
     assert.equal((await pool.query('select * from conversations')).rowCount, 1);
+    const conversation = (await pool.query('select id from conversations')).rows[0].id;
+    const user = randomUUID();
+    async function queue() {
+      const id = randomUUID();
+      await pool.query("insert into message_outbox(id,organization_id,store_id,conversation_id,requested_by,idempotency_key,body) values($1,$2,$3,$4,$5,$6,'Synthetic simulation')", [id, org, store, conversation, user, randomUUID()]);
+      return id;
+    }
+    const firstOutbox = await queue(); await queue();
+    const held = await pool.connect();
+    await held.query('begin');
+    await held.query('select id from message_outbox where id=$1 for update', [firstOutbox]);
+    await held.query("update message_outbox set status='processing',attempt_count=attempt_count+1 where id=$1", [firstOutbox]);
+    // The other worker must finish without touching the locked simulation.
+    assert.equal(await processNextOutbox(pool, options), true);
+    held.release(true);
+    assert.equal(await processNextOutbox(pool, options), true);
+    assert.equal((await pool.query("select * from message_outbox where status='simulated' and attempt_count=1")).rowCount, 2);
+    await queue(); await queue();
+    assert.deepEqual(await Promise.all([processNextOutbox(pool, options), processNextOutbox(pool, options)]), [true, true]);
+    assert.equal((await pool.query("select * from message_outbox where status='simulated'")).rowCount, 4);
+    assert.equal((await pool.query("select * from messages where direction='out'")).rowCount, 0);
+
   } finally {
     await pool.end();
     // Schema name is generated internally and contains only [a-z0-9_].

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createApi, type Api, type Contact, type Conversation } from './api';
+import { OutboxComposer } from './OutboxComposer';
 import { usePaged } from './usePaged';
 
 const date = (value: string, full = false) => {
@@ -86,7 +87,7 @@ function ConversationPane({ api, conversation, back }: { api: Api; conversation:
           <time dateTime={message.sent_at || message.created_at}>{date(message.sent_at || message.created_at, true)}</time>
         </li>)}</ol>
       </div>
-      <footer className="thread-footer">Bandeja de solo lectura. El envío de mensajes estará disponible en una próxima etapa.</footer>
+      <OutboxComposer api={api} conversationId={conversation.id}/>
     </section>
     <aside className="contact-panel" aria-label="Información del contacto" tabIndex={0}><ContactInfo api={api} conversation={conversation}/></aside>
   </>;

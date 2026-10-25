@@ -11,14 +11,13 @@
 2. API validates exact raw request bytes and WhatsApp event envelope.
 3. API inserts a single event into a dedicated PostgreSQL `webhook_inbox`, using raw-body SHA-256 for delivery deduplication.
 4. API acknowledges only after durable storage; returns 503 if DB is unavailable.
-5. **No worker yet**. Inbox events remain pending. Do not connect production traffic.
+5. The independent inbox worker processes tenant-scoped incoming text with bounded retries. A separate, explicitly enabled outbox worker simulates replies only. Do not connect production traffic.
 
 ## Next implementation
-- Add a worker with leasing, retry/backoff and dead-letter state.
-- Parse each `entry[].changes[].value.messages[]`, dedupe by Meta message ID, resolve a channel connection and contact.
-- Enforce organization/store consistency with DB constraints and scoped queries.
-- Implement read-only inbox UI, then manual replies, then AI.
-- Integrate Shopify read-only via credentials stored encrypted server-side.
+- Validate real development Supabase database access and Google login; both remain pending.
+- Review the simulated outbox in [phase 4](PHASE_4_OUTBOX.md) before connecting a real transport.
+- Add controlled manual WhatsApp sandbox replies only after explicit authorization, provider idempotency/reconciliation design and recipient/policy checks.
+- Consider AI and a read-only Shopify connector in separately scoped increments.
 
 ## Deployment caveat
 Migration 001 is intended for a new, isolated database and must not be run against existing Live Manager or Shopify infrastructure. Seed the MVP organization and store in the isolated DB before enabling the webhook endpoint. This is a development scaffold, not production-ready.
