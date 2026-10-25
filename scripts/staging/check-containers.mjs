@@ -65,7 +65,20 @@ try {
   check((await http('/health')).status === 200 && (await http('/ready')).status === 200, 'compiled API liveness and database readiness');
   check((await http('/api/me')).status === 401, 'anonymous API access denied');
   const web = await fetch(`http://127.0.0.1:${webPort}/auth/callback`, { signal: AbortSignal.timeout(10000) });
-  check(web.status === 200 && (await web.text()).includes('id="root"'), 'compiled web serves PKCE callback SPA');
+  const html = await web.text();
+  check(web.status === 200 && html.includes('id="root"'), 'compiled web serves PKCE callback SPA');
+  const assetPath = html.match(/src="(\/assets\/[^"\s]+\.js)"/)?.[1];
+  if (!assetPath) throw new Error('Compiled JavaScript asset missing');
+  for (const path of ['/', '/auth/callback', assetPath, '/assets/missing-fixture.js']) {
+    const response = await fetch(`http://127.0.0.1:${webPort}${path}`, { signal: AbortSignal.timeout(10000) });
+    check(response.status === (path.includes('missing-fixture') ? 404 : 200)
+      && response.headers.get('X-Content-Type-Options') === 'nosniff'
+      && response.headers.get('X-Frame-Options') === 'DENY'
+      && response.headers.get('Referrer-Policy') === 'no-referrer', `web security headers present on ${path}`);
+    if (path === '/' || path === '/auth/callback') check(response.headers.get('Cache-Control') === 'no-store', `SPA cache disabled on ${path}`);
+    if (path === assetPath) check(response.headers.get('Cache-Control')?.includes('immutable'), 'compiled assets retain immutable cache');
+    await response.arrayBuffer();
+  }
   const payload = JSON.stringify({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: {
     metadata: { phone_number_id: 'container-phone' }, messages: [{ id: 'container-message', from: '00000000000', timestamp: '1700000000', type: 'text', text: { body: 'Container smoke' } }],
   } }] }] });

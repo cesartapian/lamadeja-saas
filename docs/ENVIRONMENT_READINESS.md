@@ -6,13 +6,13 @@ Estado comprobado desde esta sesión Cloud. Los datos y configuración del PC no
 | --- | --- | --- | --- |
 | 1 | Código y revisión | Outbox/tablero aprobados e integrados mediante PR #10; entrada Live Manager aún en rama local de su repositorio | Publicar/revisar los cambios por el flujo acordado e integrar solo lo aprobado |
 | 2 | Esquema Supabase | Verificado por resultados del usuario: tabla, restricciones, ambos índices y RLS de 004 | Cerrado: esquema de desarrollo verificado; no repetir 004 |
-| 3 | Google OAuth y cuentas | Verificado: usuario Google real, membresía agent y lectura autorizada de bandeja vacía en localhost | Cerrado para acceso local; falta validar el dominio publicado |
-| 4 | PostgreSQL/TLS real | PC: conexión/autenticación pg con verify-full confirmó PASS tras cargar CA; diagnóstico ampliado aún por aclarar. Cloud sin conexión privada | Conexión, lectura API y worker con evento sintético comprobados en Supabase de desarrollo; diagnóstico ampliado pendiente de aclarar |
+| 3 | Google OAuth y cuentas | Verificado: usuario Google real, membresía admin restaurada y lectura autorizada de bandeja vacía en localhost | Cerrado para acceso local; falta validar el dominio publicado |
+| 4 | PostgreSQL/TLS real | Actions: conexión PostgreSQL/TLS verificada en ejecución 40229617433; también hay evidencia local | Cerrado en runner remoto: Auth/API/base/workers/navegador aprobados; despliegue permanente pendiente |
 | 5 | Alojamiento API y workers | Docker/Compose y salud/recuperación preparados y probados con PostgreSQL desechable; hosting permanente pendiente | Seleccionar un runtime compatible con API Express y workers persistentes, configurar variables privadas y comprobar arranque y recuperación; no basta publicar el frontend en Vercel |
 | 6 | Frontend SaaS y Vercel | Vercel autenticado HTTP 200; equipo Hobby y dominio Live Manager confirmados; no se encontró proyecto del SaaS nuevo | Acceso seguro al proyecto/equipo Vercel, frontend publicado con Auth/API reales y rutas de callback operativas |
 | 7 | Enlace y recorrido completo | Origen confirmado livemanager.lamadeja.cl; entrada Conversaciones preparada pero no activada | Configurar VITE_SAAS_APP_URL con el destino real, reconstruir Live Manager y probar Google → membresía → inbox → simulación |
 
-## Primera comprobación en el PC
+## Registro histórico de configuración en el PC
 
 Abrir [SQL Editor del proyecto de desarrollo](https://supabase.com/dashboard/project/ropciikoozdbvsmiulhh/sql/new). Confirmar que el proyecto sea **lamadeja-saas-dev**, referencia `ropciikoozdbvsmiulhh`.
 
@@ -47,4 +47,4 @@ Actualizar [el tablero](progress.html) y [el resumen](PROGRESS.md) con resultado
 
 ## Automatización remota preparada
 
-[STAGING.md](STAGING.md) describe las imágenes compiladas, el job de contenedores y el workflow de servicios reales. El job real requiere cinco secretos y una cuenta dedicada de Supabase Auth; la ejecución con configuración ausente falla y no acredita validación. La compra/provisión de hosting permanece pendiente. Los workers ahora usan su ámbito configurado para no consumir filas de otros tenants durante pruebas o despliegues.
+[STAGING.md](STAGING.md) describe las imágenes compiladas, el job de contenedores y el workflow de servicios reales. El job real pasó en la ejecución [40229617433](https://github.com/cesartapian/lamadeja-saas/actions/runs/40229617433): 21 comprobaciones y limpieza confirmada por el artefacto. Los cinco secretos y la cuenta dedicada están configurados. La compra/provisión de hosting permanece pendiente. Los workers ahora usan su ámbito configurado para no consumir filas de otros tenants durante pruebas o despliegues.
