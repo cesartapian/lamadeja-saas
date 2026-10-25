@@ -1,16 +1,13 @@
-import { setTimeout } from 'node:timers/promises';
 import { pool } from './lib/database.js';
 import { config } from './lib/config.js';
 import { processNext } from './lib/processInbox.js';
-let stopping = false;
+import { runWorker } from './lib/runWorker.js';
 if (!config.DATABASE_URL) throw new Error('Worker requires a dedicated DATABASE_URL');
-process.on('SIGINT', () => { stopping = true; });
-process.on('SIGTERM', () => { stopping = true; });
-try {
-  while (!stopping) {
-    try {
-      if (await processNext(pool, { maxAttempts: config.WORKER_MAX_ATTEMPTS, retrySeconds: config.WORKER_RETRY_SECONDS, timeoutMs: config.WORKER_TIMEOUT_MS })) continue;
-    } catch { console.error('Inbox worker transaction failed; will retry'); }
-    await setTimeout(config.WORKER_POLL_MS);
-  }
-} finally { await pool.end(); }
+await runWorker({
+  service: 'lamadeja-inbox-worker', pool,
+  pollMs: config.WORKER_POLL_MS, timeoutMs: config.WORKER_TIMEOUT_MS, healthPort: config.WORKER_HEALTH_PORT,
+  processNext: () => processNext(pool, {
+    maxAttempts: config.WORKER_MAX_ATTEMPTS, retrySeconds: config.WORKER_RETRY_SECONDS, timeoutMs: config.WORKER_TIMEOUT_MS,
+    scope: { organizationId: config.MVP_ORGANIZATION_ID, storeId: config.MVP_STORE_ID },
+  }),
+});

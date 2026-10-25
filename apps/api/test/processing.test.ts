@@ -160,3 +160,15 @@ test('webhook returns 503 rather than acknowledging persistence failure', async 
     assert.equal(response.status, 503);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test('a scoped inbox worker does not claim a different organization or store event', async () => {
+  const f = await fixture();
+  try {
+    await f.enqueue();
+    assert.equal(await processNext(f.pool, { ...options, scope: { organizationId: other, storeId: otherStore } }), false);
+    assert.equal(await processNext(f.pool, { ...options, scope: { organizationId: org, storeId: otherStore } }), false);
+    assert.equal((await f.query('select * from messages')).rows.length, 0);
+    assert.equal(await processNext(f.pool, { ...options, scope: { organizationId: org, storeId: store } }), true);
+    assert.equal((await f.query('select * from messages')).rows.length, 1);
+  } finally { await f.db.close(); }
+});

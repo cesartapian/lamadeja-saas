@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "start:worker": "node dist/worker.js",
+    "start:outbox": "node dist/outboxWorker.js",
     "worker:outbox": "tsx src/outboxWorker.ts",
     "worker": "tsx src/worker.ts",
     "dev": "tsx watch src/index.ts",

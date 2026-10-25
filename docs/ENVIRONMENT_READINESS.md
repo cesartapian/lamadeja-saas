@@ -8,7 +8,7 @@ Estado comprobado desde esta sesión Cloud. Los datos y configuración del PC no
 | 2 | Esquema Supabase | Verificado por resultados del usuario: tabla, restricciones, ambos índices y RLS de 004 | Cerrado: esquema de desarrollo verificado; no repetir 004 |
 | 3 | Google OAuth y cuentas | Verificado: usuario Google real, membresía agent y lectura autorizada de bandeja vacía en localhost | Cerrado para acceso local; falta validar el dominio publicado |
 | 4 | PostgreSQL/TLS real | PC: conexión/autenticación pg con verify-full confirmó PASS tras cargar CA; diagnóstico ampliado aún por aclarar. Cloud sin conexión privada | Conexión, lectura API y worker con evento sintético comprobados en Supabase de desarrollo; diagnóstico ampliado pendiente de aclarar |
-| 5 | Alojamiento API y workers | Plataforma/URL del backend nuevo sin confirmar | Seleccionar un runtime compatible con API Express y workers persistentes, configurar variables privadas y comprobar arranque y recuperación; no basta publicar el frontend en Vercel |
+| 5 | Alojamiento API y workers | Docker/Compose y salud/recuperación preparados y probados con PostgreSQL desechable; hosting permanente pendiente | Seleccionar un runtime compatible con API Express y workers persistentes, configurar variables privadas y comprobar arranque y recuperación; no basta publicar el frontend en Vercel |
 | 6 | Frontend SaaS y Vercel | Vercel autenticado HTTP 200; equipo Hobby y dominio Live Manager confirmados; no se encontró proyecto del SaaS nuevo | Acceso seguro al proyecto/equipo Vercel, frontend publicado con Auth/API reales y rutas de callback operativas |
 | 7 | Enlace y recorrido completo | Origen confirmado livemanager.lamadeja.cl; entrada Conversaciones preparada pero no activada | Configurar VITE_SAAS_APP_URL con el destino real, reconstruir Live Manager y probar Google → membresía → inbox → simulación |
 
@@ -44,3 +44,7 @@ El usuario confirmó que el evento sintético firmado pasó por API → inbox �
 Código revisado y disponible en los repositorios; esquema verificado; login real y autorización comprobados; PostgreSQL/TLS funcional desde el runtime; API/workers arrancan con datos persistentes; frontend tiene URL y configuración correctas; enlace desde Live Manager funciona y no transfiere tokens. La simulación completa debe terminar con estado `simulated`, sin envíos WhatsApp reales. La habilitación de WhatsApp sandbox/productivo es un incremento separado.
 
 Actualizar [el tablero](progress.html) y [el resumen](PROGRESS.md) con resultados observados, manteniendo separados preparado, verificado y desplegado.
+
+## Automatización remota preparada
+
+[STAGING.md](STAGING.md) describe las imágenes compiladas, el job de contenedores y el workflow de servicios reales. El job real requiere cinco secretos y una cuenta dedicada de Supabase Auth; la ejecución con configuración ausente falla y no acredita validación. La compra/provisión de hosting permanece pendiente. Los workers ahora usan su ámbito configurado para no consumir filas de otros tenants durante pruebas o despliegues.

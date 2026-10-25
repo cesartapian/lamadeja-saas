@@ -6,7 +6,7 @@ test('phase dashboard filters phases and exposes integration limits without exte
   page.on('request', request => { if (/^https?:/.test(request.url())) external.push(request.url()); });
   await page.setContent(await readFile(new URL('../../../docs/progress.html', import.meta.url), 'utf8'));
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Qué está construido.');
-  await expect(page.locator('.phase:visible')).toHaveCount(8);
+  await expect(page.locator('.phase:visible')).toHaveCount(9);
   await page.getByRole('button', { name: 'Integraciones pendientes', exact: true }).click();
   await expect(page.locator('.phase:visible')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Supabase y Google reales' })).toBeVisible();
@@ -17,7 +17,7 @@ test('phase dashboard filters phases and exposes integration limits without exte
   await page.getByText('Evidencia y próximo paso', { exact: true }).click();
   await expect(page.getByRole('link', { name: 'Contrato y puesta en marcha' })).toBeVisible();
   await page.getByRole('button', { name: 'Todo', exact: true }).click();
-  await expect(page.locator('.phase:visible')).toHaveCount(8);
+  await expect(page.locator('.phase:visible')).toHaveCount(9);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
   expect(external).toEqual([]);
   await mkdir('.impeccable/review', { recursive: true });
