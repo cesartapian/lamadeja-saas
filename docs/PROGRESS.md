@@ -12,8 +12,8 @@ El usuario aportó una captura de localhost:5173 mostrando la conversación de p
 | 2. Inbox durable y procesamiento | Implementada; prueba local contra Supabase verificada | Evento sintético firmado procesado por worker y visible en la bandeja | Integración Meta real y runtime publicado |
 | 3. Bandeja de conversaciones | Implementada; conversación e hilo de prueba verificados | Captura del frontend local con mensaje persistido y lectura autorizada | Recorrido publicado |
 | Acceso desde Live Manager | Código preparado en repositorio de origen; por revisar | Origen livemanager.lamadeja.cl; siete pruebas y build aprobados | URL SaaS, revisión y despliegue/configuración del enlace |
-| 4. Outbox simulada | Integrada en main; ejecución manual en Supabase procesó una tarea | PC actualizado, compositor guarda solicitudes y processNextOutbox devolvió true | Éxito visual confirmado en PC; verificar cobertura de reintentos y desplegar runtime |
-| Supabase / Google | Acceso local real verificado | Google/callback, conexión PostgreSQL del PC y lectura autorizada del inbox | Aclarar diagnóstico ampliado y validar runtime publicado/outbox |
+| 4. Outbox simulada | Integrada en main; ejecución manual en Supabase procesó una tarea | PC actualizado, compositor guarda solicitudes y processNextOutbox devolvió true | Éxito visual y prueba aislada de reintentos confirmados en PC; desplegar runtime |
+| Supabase / Google | Acceso local real verificado | Google/callback, conexión PostgreSQL del PC y lectura autorizada del inbox | Aclarar diagnóstico ampliado y validar runtime publicado |
 | WhatsApp controlado | No iniciado | Contrato de simulación documentado | Autorización sandbox, políticas, transporte, reconciliación y recibos |
 | Shopify, CRM y asistencia | Alcance por definir | Límites de integración documentados | Definir cada incremento |
 
@@ -42,6 +42,8 @@ NODE_EXTRA_CA_CERTS debe estar presente en el proceso padre de cada API/worker; 
 ## Interpretación y cobertura de reintentos
 
 La captura del usuario muestra solicitudes `simulated` con `Intentos 1/5`: éxito en el primer intento, con un máximo de cinco. No son mensajes fallidos. El test SQL aislado nuevo cubre cinco fallos consecutivos con esperas de 30/60/120/240 segundos, estado terminal `failed` y ningún sexto intento; también cubre dos fallos y recuperación en el tercero. La elegibilidad se adelanta solo en la base efímera de pruebas. El éxito real local queda validado; no se presenta la captura como prueba manual de fallos del proveedor. Los fallos anteriores de transacción se revertían y son una categoría diferente.
+
+El usuario actualizó su PC desde main tras integrar PR #11 y ejecutó la prueba filtrada `outbox retries recover on the third attempt or stop after five failures`: una aprobada, cero fallidas, cero omitidas. Esto confirma el caso de fallos/reintentos en una base aislada del PC; la prueba manual de la interfaz contra Supabase confirmó el éxito en el primer intento. No se presenta como un envío WhatsApp real ni una prueba manual de fallos del proveedor remoto.
 
 ## Enlace y producción pendientes
 
