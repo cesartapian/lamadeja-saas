@@ -122,3 +122,59 @@ test('simulation survives retries, stops at the attempt limit, records no real m
     assert.equal((rls.rows[0] as {relrowsecurity:boolean}).relrowsecurity, true);
   } finally { await f.db.close(); }
 });
+
+test('outbox retries recover on the third attempt or stop after five failures', async () => {
+  const f = await fixture();
+  try {
+    const retryOptions = { ...options, retrySeconds: 30 };
+    const exhausted = await f.enqueue(5);
+    let failures = 0;
+    const failing = { async simulate(): Promise<string> { failures++; throw new Error('Synthetic provider failure'); } };
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      assert.equal(await processNextOutbox(f.pool, retryOptions, failing), true);
+      const job = (await f.query(`select status,attempt_count,simulation_receipt,completed_at,
+        extract(epoch from (next_attempt_at-updated_at))::integer as delay_seconds
+        from message_outbox where id=$1`, [exhausted])).rows[0] as {
+        status:string;attempt_count:number;simulation_receipt:string|null;completed_at:Date|null;delay_seconds:number;
+      };
+      assert.equal(job.attempt_count, attempt);
+      assert.equal(job.status, attempt < 5 ? 'retrying' : 'failed');
+      assert.equal(job.simulation_receipt, null); assert.equal(job.completed_at, null);
+      if (attempt < 5) {
+        assert.equal(job.delay_seconds, [30, 60, 120, 240][attempt - 1]);
+        assert.equal(await processNextOutbox(f.pool, retryOptions, failing), false, 'backoff prevents immediate retries');
+      }
+      // Advance eligibility only in this isolated fixture; never change live jobs.
+      await f.query('update message_outbox set next_attempt_at=now() where id=$1', [exhausted]);
+    }
+    assert.equal(failures, 5);
+    assert.equal(await processNextOutbox(f.pool, retryOptions, failing), false, 'terminal failure cannot be claimed a sixth time');
+    assert.equal(failures, 5);
+
+    const recovered = await f.enqueue(5);
+    let attempts = 0;
+    const intermittent = { async simulate(job: {id:string}): Promise<string> {
+      attempts++;
+      if (attempts < 3) throw new Error('Synthetic transient failure');
+      return `simulation:${job.id}`;
+    } };
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      assert.equal(await processNextOutbox(f.pool, retryOptions, intermittent), true);
+      const job = (await f.query('select status,attempt_count,last_error,simulation_receipt from message_outbox where id=$1', [recovered])).rows[0] as {
+        status:string;attempt_count:number;last_error:string|null;simulation_receipt:string|null;
+      };
+      assert.equal(job.status, attempt < 3 ? 'retrying' : 'simulated');
+      assert.equal(job.attempt_count, attempt);
+      if (attempt < 3) {
+        assert.equal(await processNextOutbox(f.pool, retryOptions, intermittent), false);
+        await f.query('update message_outbox set next_attempt_at=now() where id=$1', [recovered]);
+      } else {
+        assert.equal(job.last_error, null);
+        assert.equal(job.simulation_receipt, `simulation:${recovered}`);
+      }
+    }
+    assert.equal(await processNextOutbox(f.pool, retryOptions, intermittent), false, 'successful simulation must not be retried');
+    assert.equal(attempts, 3);
+    assert.equal((await f.query("select * from messages where direction='out'")).rows.length, 0);
+  } finally { await f.db.close(); }
+});

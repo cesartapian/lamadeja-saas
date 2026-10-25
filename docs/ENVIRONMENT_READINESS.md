@@ -4,12 +4,12 @@ Estado comprobado desde esta sesión Cloud. Los datos y configuración del PC no
 
 | Orden | Punto | Estado comprobado | Criterio para cerrarlo |
 | --- | --- | --- | --- |
-| 1 | Código y revisión | Outbox/tablero y entrada Live Manager preparados en ramas locales; no se encontraron PR abiertos de esas ramas | Publicar/revisar los cambios por el flujo acordado e integrar solo lo aprobado |
+| 1 | Código y revisión | Outbox/tablero aprobados e integrados mediante PR #10; entrada Live Manager aún en rama local de su repositorio | Publicar/revisar los cambios por el flujo acordado e integrar solo lo aprobado |
 | 2 | Esquema Supabase | Verificado por resultados del usuario: tabla, restricciones, ambos índices y RLS de 004 | Cerrado: esquema de desarrollo verificado; no repetir 004 |
 | 3 | Google OAuth y cuentas | Verificado: usuario Google real, membresía agent y lectura autorizada de bandeja vacía en localhost | Cerrado para acceso local; falta validar el dominio publicado |
 | 4 | PostgreSQL/TLS real | PC: conexión/autenticación pg con verify-full confirmó PASS tras cargar CA; diagnóstico ampliado aún por aclarar. Cloud sin conexión privada | Conexión, lectura API y worker con evento sintético comprobados en Supabase de desarrollo; diagnóstico ampliado pendiente de aclarar |
 | 5 | Alojamiento API y workers | Plataforma/URL del backend nuevo sin confirmar | Seleccionar un runtime compatible con API Express y workers persistentes, configurar variables privadas y comprobar arranque y recuperación; no basta publicar el frontend en Vercel |
-| 6 | Frontend SaaS y Vercel | URL SaaS no confirmada; requisito VERCEL_TOKEN sin valor guardado | Acceso seguro al proyecto/equipo Vercel, frontend publicado con Auth/API reales y rutas de callback operativas |
+| 6 | Frontend SaaS y Vercel | Vercel autenticado HTTP 200; equipo Hobby y dominio Live Manager confirmados; no se encontró proyecto del SaaS nuevo | Acceso seguro al proyecto/equipo Vercel, frontend publicado con Auth/API reales y rutas de callback operativas |
 | 7 | Enlace y recorrido completo | Origen confirmado livemanager.lamadeja.cl; entrada Conversaciones preparada pero no activada | Configurar VITE_SAAS_APP_URL con el destino real, reconstruir Live Manager y probar Google → membresía → inbox → simulación |
 
 ## Primera comprobación en el PC
@@ -30,14 +30,14 @@ La membresía debe referenciar al usuario **real** de ese mismo proyecto Auth, c
 
 ## Accesos y publicación
 
-- Vercel: entrar a la cuenta/equipo existente y comprobar los proyectos. El token personal se introduce solo en los ajustes seguros del entorno si se decide que Cloud opere la API; el requisito `VERCEL_TOKEN` está guardado pero no tiene binding. No compartirlo en el chat.
+- Vercel: entrar a la cuenta/equipo existente y comprobar los proyectos. El token personal ya está disponible en Cloud y permitió consultar cuenta, equipo/proyectos y el dominio de Live Manager. No compartirlo en el chat.
 - PostgreSQL: la conexión privada y, si corresponde, la CA se configuran en el PC/runtime que hará la prueba. El token HTTP de Vercel o una clave pública de Supabase no reemplazan la conexión de base de datos.
 - Runtime backend: usar una opción existente compatible cuando la haya. No habilitar planes, complementos ni infraestructura de pago sin confirmación del coste y autorización.
 - Las sesiones del PC y Cloud son distintas. Guardar valores en el PC no los inyecta automáticamente en Cloud, ni un conector MCP local garantiza herramientas en esta sesión.
 
 ## Recepción local: validación completada
 
-El usuario confirmó que el evento sintético firmado pasó por API → inbox → worker → Supabase y apareció como conversación/mensaje en el frontend. También confirmó la ficha del contacto de prueba. El usuario ejecutó Test-Path para apps/api/src/outboxWorker.ts y obtuvo false: la outbox todavía no está instalada en esa copia del PC. Antes de probarla, publicar y revisar/integrar los cambios preparados en Cloud mediante el flujo de PR acordado. Después actualizar la copia correcta del PC, instalar dependencias con npm ci, configurar OUTBOX_MODE=simulated en el .env privado de la API, reiniciar API y arrancar npm run worker:outbox con la CA. No repetir 004: su esquema de desarrollo ya quedó verificado.
+El usuario confirmó que el evento sintético firmado pasó por API → inbox → worker → Supabase y apareció como conversación/mensaje en el frontend, además de la ficha del contacto. Después de integrar PR #10 actualizó el PC: Test-Path de outboxWorker.ts devolvió true, activó OUTBOX_MODE=simulated y el compositor guardó solicitudes pendientes. El worker continuo mostró errores genéricos; tras detenerlo y cargar explícitamente la CA, la ejecución directa de processNextOutbox devolvió PROCESADO: true. Después de reiniciarlo con la CA, el usuario aportó una captura con las solicitudes en Simulado · sin envío real · Intentos 1/5. El éxito de la outbox local está verificado. Intentos 1/5 representa éxito al primer intento. La prueba SQL aislada cubre agotamiento a cinco fallos y recuperación al tercero; no se ejercitó manualmente una falla del proveedor real. La causa exacta del fallo previo de infraestructura no está aislada. No repetir 004.
 
 ## Listo significa
 

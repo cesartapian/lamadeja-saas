@@ -11,6 +11,8 @@ test('phase dashboard filters phases and exposes integration limits without exte
   await expect(page.locator('.phase:visible')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Supabase y Google reales' })).toBeVisible();
   await page.getByRole('button', { name: 'Por revisar', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Live Manager → Conversaciones' })).toBeVisible();
+  await page.getByRole('button', { name: 'Implementado', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Outbox persistente simulada' })).toBeVisible();
   await page.getByText('Evidencia y próximo paso', { exact: true }).click();
   await expect(page.getByRole('link', { name: 'Contrato y puesta en marcha' })).toBeVisible();
