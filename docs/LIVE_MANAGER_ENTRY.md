@@ -45,8 +45,8 @@ Las pruebas del repositorio Live Manager verifican destinos seguros, visibilidad
 
 El usuario autorizó pasar el enlace a producción. La ejecución está bloqueada, no completada:
 
-- Cloud no tiene acceso autenticado a Vercel: no hay token inyectado, sesión CLI ni conector disponible.
-- Se guardó en el borrador del entorno el requisito personal `VERCEL_TOKEN`, limitado al destino HTTPS `api.vercel.com`, sin ningún valor. Debe completarse de forma segura en los ajustes del entorno; guardar el requisito no autentica ni despliega.
+- Acceso Vercel desbloqueado: token disponible y consulta autenticada HTTP 200. Equipo Hobby y dominio de Live Manager confirmados.
+- El secreto personal VERCEL_TOKEN funciona hacia api.vercel.com; su valor no se registra aquí. Esto prueba acceso de consulta, no un despliegue.
 - La consulta de despliegues GitHub de Live Manager respondió 403; esto no demuestra que Vercel no tenga despliegues.
 - El origen Live Manager está confirmado; el destino publicado del SaaS sigue sin confirmar. No activar el enlace con una dirección inventada.
 

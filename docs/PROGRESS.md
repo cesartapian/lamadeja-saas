@@ -4,7 +4,7 @@
 
 ## Último resultado: recepción y procesamiento local verificados
 
-El usuario aportó una captura de localhost:5173 mostrando la conversación de prueba y el mensaje sintético recibido. Queda comprobado el recorrido de evento firmado a API local → webhook_inbox persistente → worker → datos de Supabase de desarrollo → lectura autenticada de conversación e hilo en el frontend. La prueba utiliza un evento sintético, sin contacto con Meta ni envío WhatsApp real. El usuario confirmó después la ficha del contacto de prueba. La outbox simulada y el despliegue publicado siguen sin validación manual.
+El usuario aportó una captura de localhost:5173 mostrando la conversación de prueba y el mensaje sintético recibido. Queda comprobado el recorrido de evento firmado a API local → webhook_inbox persistente → worker → datos de Supabase de desarrollo → lectura autenticada de conversación e hilo en el frontend. La prueba utiliza un evento sintético, sin contacto con Meta ni envío WhatsApp real. El usuario confirmó después la ficha del contacto de prueba. La outbox ya está instalada en el PC: el compositor guardó solicitudes y una ejecución directa devolvió PROCESADO: true. Tras reiniciar el worker con la CA, el usuario aportó una captura con todas las solicitudes visibles en Simulado · sin envío real · Intentos 1/5. Queda validado el éxito de la outbox desde el compositor hasta el worker; la captura no ejercita fallos/reintentos. El despliegue publicado sigue pendiente.
 
 | Fase / hito | Estado | Evidencia | Pendiente |
 | --- | --- | --- | --- |
@@ -12,7 +12,7 @@ El usuario aportó una captura de localhost:5173 mostrando la conversación de p
 | 2. Inbox durable y procesamiento | Implementada; prueba local contra Supabase verificada | Evento sintético firmado procesado por worker y visible en la bandeja | Integración Meta real y runtime publicado |
 | 3. Bandeja de conversaciones | Implementada; conversación e hilo de prueba verificados | Captura del frontend local con mensaje persistido y lectura autorizada | Recorrido publicado |
 | Acceso desde Live Manager | Código preparado en repositorio de origen; por revisar | Origen livemanager.lamadeja.cl; siete pruebas y build aprobados | URL SaaS, revisión y despliegue/configuración del enlace |
-| 4. Outbox simulada | Implementada en rama local; por revisar | Cola, compositor, idempotencia y worker; esquema 004 verificado en Supabase | Integrar código y probar simulación en el entorno real |
+| 4. Outbox simulada | Integrada en main; ejecución manual en Supabase procesó una tarea | PC actualizado, compositor guarda solicitudes y processNextOutbox devolvió true | Éxito visual confirmado en PC; verificar cobertura de reintentos y desplegar runtime |
 | Supabase / Google | Acceso local real verificado | Google/callback, conexión PostgreSQL del PC y lectura autorizada del inbox | Aclarar diagnóstico ampliado y validar runtime publicado/outbox |
 | WhatsApp controlado | No iniciado | Contrato de simulación documentado | Autorización sandbox, políticas, transporte, reconciliación y recibos |
 | Shopify, CRM y asistencia | Alcance por definir | Límites de integración documentados | Definir cada incremento |
@@ -43,12 +43,12 @@ NODE_EXTRA_CA_CERTS debe estar presente en el proceso padre de cada API/worker; 
 
 Origen confirmado: livemanager.lamadeja.cl. La entrada Conversaciones está preparada en live-manager-cl y se activa con VITE_SAAS_APP_URL. La URL publicada del SaaS sigue sin confirmar; no se transmiten sesiones ni tokens por el enlace. El SaaS usa su propia sesión o Google mediante PKCE.
 
-[Recorrido y activación](LIVE_MANAGER_ENTRY.md). Paso a producción autorizado, pero bloqueado por falta de acceso autenticado a Vercel, destino SaaS confirmado y definición del alojamiento de API/workers persistentes. El requisito VERCEL_TOKEN está guardado sin valor en el borrador del entorno. Cloud continúa sin conexión privada a Supabase; la configuración y las pruebas reales realizadas en el PC no se trasladan automáticamente a Cloud.
+[Recorrido y activación](LIVE_MANAGER_ENTRY.md). Paso a producción autorizado. Vercel ya respondió HTTP 200 a la consulta autenticada de Cloud: equipo Hobby y dominio livemanager.lamadeja.cl confirmados. No apareció un proyecto del nuevo SaaS en el listado consultado; faltan su destino y el alojamiento de API/workers persistentes. DATABASE_URL ahora está presente en Cloud, pero su configuración no coincide con el endpoint/usuario/base/TLS del desarrollo esperado; no se utilizó para cambios. La conexión de Cloud a Supabase sigue sin validar; la configuración y las pruebas reales realizadas en el PC no se trasladan automáticamente a Cloud.
 
 ## Próximos pasos
 
 1. Completada la prueba local de evento sintético, worker, conversación/hilo y ficha detallada del contacto.
-2. Revisar e integrar el código pendiente de outbox/tablero y enlace, y probar la outbox simulada con el código disponible en el PC.
+2. Outbox/tablero aprobados e integrados mediante PR #10. PC actualizado; compositor y procesamiento manual comprobados. El usuario ya confirmó estado simulado para las solicitudes de prueba. Revisar cobertura de fallos/reintentos antes de publicar. La entrada de Live Manager sigue en su rama local del repositorio separado.
 3. Completar acceso a hosting, alojar API/workers y frontend, y configurar callbacks y enlace del dominio publicado.
 4. Validar el recorrido publicado antes de habilitar cualquier WhatsApp real.
 
