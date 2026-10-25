@@ -45,17 +45,21 @@ La captura del usuario muestra solicitudes `simulated` con `Intentos 1/5`: éxit
 
 El usuario actualizó su PC desde main tras integrar PR #11 y ejecutó la prueba filtrada `outbox retries recover on the third attempt or stop after five failures`: una aprobada, cero fallidas, cero omitidas. Esto confirma el caso de fallos/reintentos en una base aislada del PC; la prueba manual de la interfaz contra Supabase confirmó el éxito en el primer intento. No se presenta como un envío WhatsApp real ni una prueba manual de fallos del proveedor remoto.
 
-## Runtime remoto preparado; integración real por configurar
+## Runtime remoto y prueba real aprobados
 
 Se añadieron imágenes Docker de API/workers y frontend, configuración Vercel y Compose, preparación basada en DB/ciclos, apagado ordenado y recuperación de desconexiones del pool. Los workers ejecutables se limitan al ámbito configurado. La prueba de contenedores con PostgreSQL 16 desechable verificó procesamiento, aislamiento, SIGTERM, fallo de preparación y recuperación tras caída de la base.
 
-El workflow Real development integration y su runner están preparados para Auth/API/Supabase/workers/browser reales sin mocks. La ejecución se detuvo con código no cero por configuración faltante: requiere la cuenta de prueba dedicada y cinco secretos de Actions. No se reporta como prueba remota real aprobada ni como despliegue permanente. [Contrato y configuración](STAGING.md).
+El workflow Real development integration [pasó en Actions](https://github.com/cesartapian/lamadeja-saas/actions/runs/40229617433): 21 comprobaciones distintas de Auth auténtico, TLS verificado, API, aislamiento, deduplicación, workers, navegador y outbox simulada. El artefacto summary.json confirma status=passed y fixture_cleanup_complete=true. No usó mocks ni envió WhatsApp. La cuenta dedicada y los cinco secretos están configurados. Cloud recuperó acceso de lectura y confirmó directamente la ejecución y su artefacto. Google interactivo y el dominio público siguen pendientes. [Contrato y configuración](STAGING.md).
+
+## Opciones de alojamiento sin cuota mensual
+
+[Comparación y requisitos](HOSTING_OPTIONS.md): Oracle Always Free es candidato para Docker con los workers actuales, sujeto a capacidad, cuotas y recuperación de instancias inactivas. Render/Koyeb gratuitos tienen suspensión y límites de workers; Railway ofrece crédito limitado. No se contrató ni provisionó ningún servicio.
 
 ## Enlace y producción pendientes
 
 Origen confirmado: livemanager.lamadeja.cl. La entrada Conversaciones está preparada en live-manager-cl y se activa con VITE_SAAS_APP_URL. La URL publicada del SaaS sigue sin confirmar; no se transmiten sesiones ni tokens por el enlace. El SaaS usa su propia sesión o Google mediante PKCE.
 
-[Recorrido y activación](LIVE_MANAGER_ENTRY.md). Paso a producción autorizado. Vercel ya respondió HTTP 200 a la consulta autenticada de Cloud: equipo Hobby y dominio livemanager.lamadeja.cl confirmados. No apareció un proyecto del nuevo SaaS en el listado consultado; faltan su destino y el alojamiento de API/workers persistentes. DATABASE_URL ahora está presente en Cloud, pero su configuración no coincide con el endpoint/usuario/base/TLS del desarrollo esperado; no se utilizó para cambios. La conexión de Cloud a Supabase sigue sin validar; la configuración y las pruebas reales realizadas en el PC no se trasladan automáticamente a Cloud.
+[Recorrido y activación](LIVE_MANAGER_ENTRY.md). Paso a producción autorizado. Vercel ya respondió HTTP 200 a la consulta autenticada de Cloud: equipo Hobby y dominio livemanager.lamadeja.cl confirmados. No apareció un proyecto del nuevo SaaS en el listado consultado; faltan su destino y el alojamiento de API/workers persistentes. La prueba de Actions sí verificó la conexión TLS a Supabase y el recorrido completo en un runner remoto. Esto no equivale a un servicio permanente publicado. No hay credenciales de un proveedor de API/workers entre las disponibles; elegir alojamiento y revisar costo sigue pendiente.
 
 ## Próximos pasos
 
