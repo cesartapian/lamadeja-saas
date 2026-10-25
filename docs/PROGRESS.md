@@ -1,46 +1,55 @@
 # Avance de La Madeja SaaS
 
-[Tablero interactivo de fases](progress.html): descargar/abrir el HTML en un navegador para filtrar los estados. Funciona sin red y no contiene credenciales. Es un registro editorial versionado, no telemetría del despliegue.
+[Tablero interactivo](progress.html) · [Lista para dejar listo el entorno](ENVIRONMENT_READINESS.md)
 
-| Fase / hito | Estado de desarrollo | Evidencia | Pendiente |
+## Último resultado: recepción y procesamiento local verificados
+
+El usuario aportó una captura de localhost:5173 mostrando la conversación de prueba y el mensaje sintético recibido. Queda comprobado el recorrido de evento firmado a API local → webhook_inbox persistente → worker → datos de Supabase de desarrollo → lectura autenticada de conversación e hilo en el frontend. La prueba utiliza un evento sintético, sin contacto con Meta ni envío WhatsApp real. El usuario confirmó después la ficha del contacto de prueba. La outbox simulada y el despliegue publicado siguen sin validación manual.
+
+| Fase / hito | Estado | Evidencia | Pendiente |
 | --- | --- | --- | --- |
-| 1. Base, identidad y aislamiento | Implementada | API/web, PKCE, correo y membresía; PR #6 integrado | Login con cuenta Google real |
-| 2. Recepción e inbox durable | Implementada | Pruebas HMAC, SQL, deduplicación y recuperación | Recorrido con servicios reales; no hay webhooks productivos |
-| 3. Bandeja de conversaciones | Implementada | Pruebas de escritorio/móvil, paginación, contactos y errores | Validación con usuario y datos del entorno aislado |
-| Acceso desde Live Manager | Código preparado en repositorio de origen; por revisar | Origen `livemanager.lamadeja.cl`; 7 pruebas y build Live Manager aprobados | URL SaaS, revisión/despliegue, configuración OAuth y recorrido real |
-| 4. Outbox simulada | Implementada en esta rama; por revisar | Cola persistente, compositor, idempotencia y worker | Revisión, integración y aplicación de migración 004 al entorno aislado |
-| Supabase / Google reales | Validación pendiente | Preparación en PR #7 y #8; diagnóstico TLS en #9 | Red PostgreSQL, conexión privada, CA si corresponde, OAuth y membresía real |
-| Envío WhatsApp controlado | No iniciado | Contrato de simulación documentado | Autorización sandbox, políticas, transporte, reconciliación y recibos |
-| Shopify, CRM y asistencia | Alcance por definir | Límites de integración documentados | Definir el incremento antes de implementarlo |
+| 1. Identidad y aislamiento | Implementada; acceso local real verificado | Usuario Google real, membresía agent y bandeja autorizada | Acceso desde un dominio publicado |
+| 2. Inbox durable y procesamiento | Implementada; prueba local contra Supabase verificada | Evento sintético firmado procesado por worker y visible en la bandeja | Integración Meta real y runtime publicado |
+| 3. Bandeja de conversaciones | Implementada; conversación e hilo de prueba verificados | Captura del frontend local con mensaje persistido y lectura autorizada | Recorrido publicado |
+| Acceso desde Live Manager | Código preparado en repositorio de origen; por revisar | Origen livemanager.lamadeja.cl; siete pruebas y build aprobados | URL SaaS, revisión y despliegue/configuración del enlace |
+| 4. Outbox simulada | Implementada en rama local; por revisar | Cola, compositor, idempotencia y worker; esquema 004 verificado en Supabase | Integrar código y probar simulación en el entorno real |
+| Supabase / Google | Acceso local real verificado | Google/callback, conexión PostgreSQL del PC y lectura autorizada del inbox | Aclarar diagnóstico ampliado y validar runtime publicado/outbox |
+| WhatsApp controlado | No iniciado | Contrato de simulación documentado | Autorización sandbox, políticas, transporte, reconciliación y recibos |
+| Shopify, CRM y asistencia | Alcance por definir | Límites de integración documentados | Definir cada incremento |
 
-## Validación de este incremento
+## Validación de código
 
-- 15 pruebas backend/TLS aprobadas; ninguna omitida al ejecutar con PostgreSQL 16 desechable.
-- 46 casos de navegador aprobados en escritorio/móvil: 44 de la aplicación y 2 del tablero.
+- 15 pruebas backend/TLS aprobadas con PostgreSQL 16 desechable; ninguna omitida en esa ejecución.
+- 46 casos de navegador aprobados en escritorio/móvil: 44 de la aplicación y dos del tablero. Pruebas del tablero actualizadas al añadir el acceso desde Live Manager.
 - Tipos, lint del compilador y build web aprobados.
-- `npm run worker:outbox` procesó una solicitud persistida contra PostgreSQL 16 sin escribir ningún mensaje real de salida.
-- La prueba de concurrencia comprobó bloqueo, procesamiento paralelo y recuperación tras desconexión.
+- El comando real `npm run worker:outbox` procesó una simulación persistida sin escribir un mensaje real de salida en la base desechable.
+- Siete pruebas del enlace Live Manager y su build aprobados; grafo de código actualizado según sus instrucciones.
 
-Esta evidencia no valida Supabase remoto ni Google real. La migración 004 solo se ejecutó en bases de prueba; ninguna base cloud o productiva fue modificada.
+Estas pruebas automatizadas son distintas de la validación manual del usuario contra Supabase de desarrollo. No se ha habilitado WhatsApp real ni se ha publicado el nuevo frontend.
 
-## Enlace desde Live Manager
+## Esquema de desarrollo: 004 verificada
 
-El origen confirmado es `https://livemanager.lamadeja.cl`. Se preparó una entrada **Conversaciones** en el repositorio `live-manager-cl`, configurada mediante `VITE_SAAS_APP_URL` y oculta hasta tener un destino válido. La URL publicada del nuevo frontend sigue sin confirmar. El enlace no comparte sesiones ni transmite tokens: el SaaS restaura su propia sesión o pide Google mediante PKCE.
+El usuario aportó desde SQL Editor la tabla message_outbox, sus restricciones y la unicidad de ámbito de conversations. Después confirmó ambos índices y RLS: `indice_reintentos=true`, `indice_conversacion=true`, `rls_habilitada=true`. No repetir 004 ni 001–003.
 
-[Recorrido, activación y validación pendientes](LIVE_MANAGER_ENTRY.md). Código local preparado; no publicado ni desplegado. Paso a producción autorizado por el usuario, pero bloqueado por falta de acceso autenticado a Vercel y destino SaaS confirmado. Se guardó el requisito personal `VERCEL_TOKEN` en el borrador del entorno, sin valor; pendiente de configuración segura.
+## Configuración y autenticación del PC
 
-## Pendiente manual: migración 004 en Supabase
+El usuario creó ambos .env desde las plantillas, instaló dependencias y guardó DATABASE_URL privadamente. Se resolvió SELF_SIGNED_CERT_IN_CHAIN para la conexión básica cargando la CA oficial mediante NODE_EXTRA_CA_CERTS antes de iniciar Node; el usuario confirmó PASS de conexión/autenticación pg con verify-full.
 
-**Estado:** pendiente; todavía no aplicada al proyecto de desarrollo. **Responsable del siguiente paso:** usuario, desde el SQL Editor de Supabase. Se deja registrado para retomarlo más adelante; no bloquea seguir construyendo con pruebas sintéticas.
+Se detectaron procesos de otra copia del repositorio, claves públicas distintas y una clave de API rechazada con 401. Tras la corrección guiada se alcanzó autorización 403; la consulta por UUID reveló un usuario Google real sin membresía. El usuario creó la membresía mínima agent y la captura posterior muestra lectura autorizada de la bandeja vacía. No se guardan correo, UUID personal, claves ni URI privada en este tablero.
 
-**Motivo:** esta sesión Codex Cloud no tiene un conector Supabase disponible ni `DATABASE_URL` configurada, y la conexión PostgreSQL directa al puerto 5432 fue rechazada. No se ha confirmado que añadir un MCP en el cliente local lo habilite en esta sesión Cloud.
+NODE_EXTRA_CA_CERTS debe estar presente en el proceso padre de cada API/worker; ponerlo solo en un .env cargado por la aplicación no configura la confianza de arranque de Node. El diagnóstico ampliado tuvo un fallo genérico que queda por aclarar: agrega opciones de sesión y consulta pg_stat_ssl detrás del pooler. Su resultado no se presenta como aprobado y no invalida la conexión básica/lectura de API observadas.
 
-**Acción al retomarlo:** abrir únicamente el proyecto de desarrollo `lamadeja-saas-dev` (`ropciikoozdbvsmiulhh`), comprobar que 001–003 estén aplicadas y que 004 no exista, y ejecutar [004_simulated_outbox.sql](../packages/database/migrations/004_simulated_outbox.sql) en SQL Editor. No repetir 001–003. Después comprobar la tabla `message_outbox`, sus índices, restricciones y RLS, y registrar el resultado aquí. La ejecución debe realizarse una sola vez; si ya existe total o parcialmente, inspeccionar el estado antes de reintentarlo.
+## Enlace y producción pendientes
 
-No compartir contraseñas ni tokens en el chat. No se ha conectado ni modificado ninguna base productiva.
+Origen confirmado: livemanager.lamadeja.cl. La entrada Conversaciones está preparada en live-manager-cl y se activa con VITE_SAAS_APP_URL. La URL publicada del SaaS sigue sin confirmar; no se transmiten sesiones ni tokens por el enlace. El SaaS usa su propia sesión o Google mediante PKCE.
 
-## Cómo mantener el tablero
+[Recorrido y activación](LIVE_MANAGER_ENTRY.md). Paso a producción autorizado, pero bloqueado por falta de acceso autenticado a Vercel, destino SaaS confirmado y definición del alojamiento de API/workers persistentes. El requisito VERCEL_TOKEN está guardado sin valor en el borrador del entorno. Cloud continúa sin conexión privada a Supabase; la configuración y las pruebas reales realizadas en el PC no se trasladan automáticamente a Cloud.
 
-Actualizar este archivo y `progress.html` cuando cambie una fase, se revise/integre su PR o se valide una integración real. Mantener separados **implementado**, **probado con simulación**, **verificado con servicio real** y **desplegado**. Añadir el resultado verificable y no convertir una aprobación de código en una afirmación de funcionamiento real. El hito de Shopify/CRM/asistencia es orientación futura, no una fase ya especificada ni una fecha comprometida.
+## Próximos pasos
 
-Siguiente paso: revisar este incremento. Después, aplicar 004 al entorno aislado autorizado y validar acceso real antes de habilitar un transporte WhatsApp.
+1. Completada la prueba local de evento sintético, worker, conversación/hilo y ficha detallada del contacto.
+2. Revisar e integrar el código pendiente de outbox/tablero y enlace, y probar la outbox simulada con el código disponible en el PC.
+3. Completar acceso a hosting, alojar API/workers y frontend, y configurar callbacks y enlace del dominio publicado.
+4. Validar el recorrido publicado antes de habilitar cualquier WhatsApp real.
+
+Actualizar este resumen y progress.html con evidencia observada. Mantener separados implementado, probado con simulación, verificado con servicio real y desplegado. Shopify/CRM/asistencia siguen siendo orientación futura, no fechas comprometidas.

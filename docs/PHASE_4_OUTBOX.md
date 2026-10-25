@@ -26,6 +26,6 @@ This transaction design is valid for simulation only. Before adding a real netwo
 
 Current cloud validation: all 15 backend/TLS tests passed, including the PostgreSQL 16 concurrency/recovery suite; 46 browser cases passed across desktop/mobile (44 application cases plus 2 dashboard cases). Typecheck, compiler lint and web build passed. The actual `npm run worker:outbox` command consumed a queued simulation in the disposable PostgreSQL instance without writing a real outgoing message.
 
-Real Supabase database connectivity and Google login remain separate pending integration checks. Migration 004 has not been applied to the cloud development project by this coding task. Creating a PR, reviewing it, merging it and applying the migration are separate actions.
+Real Supabase database connectivity and Google login remain separate pending integration checks. The user subsequently supplied schema evidence from the development Supabase SQL Editor: the outbox table and expected constraints exist. The user also confirmed both indexes and RLS enabled; development schema verification is complete. Do not rerun migration 004. Creating a PR, reviewing it, merging it and applying the migration are separate actions.
 
 See [the phase dashboard](progress.html) for the current development and integration status.

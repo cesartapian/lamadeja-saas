@@ -13,7 +13,7 @@ test('phase dashboard filters phases and exposes integration limits without exte
   await page.getByRole('button', { name: 'Por revisar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Outbox persistente simulada' })).toBeVisible();
   await page.getByText('Evidencia y próximo paso', { exact: true }).click();
-  await expect(page.getByText('Falta revisión, integración', { exact: false })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Contrato y puesta en marcha' })).toBeVisible();
   await page.getByRole('button', { name: 'Todo', exact: true }).click();
   await expect(page.locator('.phase:visible')).toHaveCount(8);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();

@@ -36,7 +36,7 @@ Un puente SSO sin interacción es una decisión posterior y no forma parte de es
 1. Confirmar/publicar frontend y API del SaaS y su URL HTTPS.
 2. Configurar `VITE_SAAS_APP_URL` en el build de Live Manager y revisar/integrar los cambios antes de desplegar.
 3. Configurar frontend/API del SaaS con el proyecto Auth seleccionado, origen/API correctos y callback propio `/auth/callback` permitido en Supabase; el callback del proveedor Google es el de Supabase `/auth/v1/callback`.
-4. Completar y validar Google, conexión de datos del SaaS y membresía. La migración 004 sigue pendiente en Supabase para usar la outbox.
+4. Completar y validar Google, conexión de datos del SaaS y membresía. El usuario ya verificó tabla, restricciones, índices y RLS de la migración 004 en Supabase de desarrollo; falta probar el acceso de API/worker.
 5. Probar desde `livemanager.lamadeja.cl` tanto el acceso autorizado como los casos sin sesión y sin membresía. Registrar el resultado en el tablero.
 
 Las pruebas del repositorio Live Manager verifican destinos seguros, visibilidad condicional, accesibilidad con menú colapsado y atributos del enlace. La compilación completa pasó. Esto no prueba navegación productiva ni login real de extremo a extremo.
