@@ -19,7 +19,7 @@ El usuario aportó una captura de localhost:5173 mostrando la conversación de p
 
 ## Validación de código
 
-- 15 pruebas backend/TLS aprobadas con PostgreSQL 16 desechable; ninguna omitida en esa ejecución.
+- 16 pruebas backend/TLS aprobadas con PostgreSQL 16 desechable; ninguna omitida en esa ejecución.
 - 46 casos de navegador aprobados en escritorio/móvil: 44 de la aplicación y dos del tablero. Pruebas del tablero actualizadas al añadir el acceso desde Live Manager.
 - Tipos, lint del compilador y build web aprobados.
 - El comando real `npm run worker:outbox` procesó una simulación persistida sin escribir un mensaje real de salida en la base desechable.
@@ -38,6 +38,10 @@ El usuario creó ambos .env desde las plantillas, instaló dependencias y guard�
 Se detectaron procesos de otra copia del repositorio, claves públicas distintas y una clave de API rechazada con 401. Tras la corrección guiada se alcanzó autorización 403; la consulta por UUID reveló un usuario Google real sin membresía. El usuario creó la membresía mínima agent y la captura posterior muestra lectura autorizada de la bandeja vacía. No se guardan correo, UUID personal, claves ni URI privada en este tablero.
 
 NODE_EXTRA_CA_CERTS debe estar presente en el proceso padre de cada API/worker; ponerlo solo en un .env cargado por la aplicación no configura la confianza de arranque de Node. El diagnóstico ampliado tuvo un fallo genérico que queda por aclarar: agrega opciones de sesión y consulta pg_stat_ssl detrás del pooler. Su resultado no se presenta como aprobado y no invalida la conexión básica/lectura de API observadas.
+
+## Interpretación y cobertura de reintentos
+
+La captura del usuario muestra solicitudes `simulated` con `Intentos 1/5`: éxito en el primer intento, con un máximo de cinco. No son mensajes fallidos. El test SQL aislado nuevo cubre cinco fallos consecutivos con esperas de 30/60/120/240 segundos, estado terminal `failed` y ningún sexto intento; también cubre dos fallos y recuperación en el tercero. La elegibilidad se adelanta solo en la base efímera de pruebas. El éxito real local queda validado; no se presenta la captura como prueba manual de fallos del proveedor. Los fallos anteriores de transacción se revertían y son una categoría diferente.
 
 ## Enlace y producción pendientes
 
