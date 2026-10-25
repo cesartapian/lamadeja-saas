@@ -19,7 +19,7 @@ El usuario aportó una captura de localhost:5173 mostrando la conversación de p
 
 ## Validación de código
 
-- 16 pruebas backend/TLS aprobadas con PostgreSQL 16 desechable; ninguna omitida en esa ejecución.
+- 24 pruebas de scripts/backend/TLS aprobadas con PostgreSQL 16 desechable; ninguna omitida en esa ejecución.
 - 46 casos de navegador aprobados en escritorio/móvil: 44 de la aplicación y dos del tablero. Pruebas del tablero actualizadas al añadir el acceso desde Live Manager.
 - Tipos, lint del compilador y build web aprobados.
 - El comando real `npm run worker:outbox` procesó una simulación persistida sin escribir un mensaje real de salida en la base desechable.
@@ -44,6 +44,12 @@ NODE_EXTRA_CA_CERTS debe estar presente en el proceso padre de cada API/worker; 
 La captura del usuario muestra solicitudes `simulated` con `Intentos 1/5`: éxito en el primer intento, con un máximo de cinco. No son mensajes fallidos. El test SQL aislado nuevo cubre cinco fallos consecutivos con esperas de 30/60/120/240 segundos, estado terminal `failed` y ningún sexto intento; también cubre dos fallos y recuperación en el tercero. La elegibilidad se adelanta solo en la base efímera de pruebas. El éxito real local queda validado; no se presenta la captura como prueba manual de fallos del proveedor. Los fallos anteriores de transacción se revertían y son una categoría diferente.
 
 El usuario actualizó su PC desde main tras integrar PR #11 y ejecutó la prueba filtrada `outbox retries recover on the third attempt or stop after five failures`: una aprobada, cero fallidas, cero omitidas. Esto confirma el caso de fallos/reintentos en una base aislada del PC; la prueba manual de la interfaz contra Supabase confirmó el éxito en el primer intento. No se presenta como un envío WhatsApp real ni una prueba manual de fallos del proveedor remoto.
+
+## Runtime remoto preparado; integración real por configurar
+
+Se añadieron imágenes Docker de API/workers y frontend, configuración Vercel y Compose, preparación basada en DB/ciclos, apagado ordenado y recuperación de desconexiones del pool. Los workers ejecutables se limitan al ámbito configurado. La prueba de contenedores con PostgreSQL 16 desechable verificó procesamiento, aislamiento, SIGTERM, fallo de preparación y recuperación tras caída de la base.
+
+El workflow Real development integration y su runner están preparados para Auth/API/Supabase/workers/browser reales sin mocks. La ejecución se detuvo con código no cero por configuración faltante: requiere la cuenta de prueba dedicada y cinco secretos de Actions. No se reporta como prueba remota real aprobada ni como despliegue permanente. [Contrato y configuración](STAGING.md).
 
 ## Enlace y producción pendientes
 

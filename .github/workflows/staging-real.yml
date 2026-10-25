@@ -1,0 +1,67 @@
+name: Real development integration
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/web/src/**'
+      - 'deploy/**'
+      - 'compose.staging.yml'
+      - 'scripts/staging/**'
+      - '.github/workflows/staging-real.yml'
+permissions:
+  contents: read
+concurrency:
+  group: real-development-integration
+  cancel-in-progress: false
+jobs:
+  real-services:
+    if: github.repository == 'cesartapian/lamadeja-saas'
+    environment: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      STAGING_RUN_REAL: '1'
+      STAGING_PROJECT_REF: ropciikoozdbvsmiulhh
+      STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+      STAGING_ANON_KEY: ${{ secrets.STAGING_ANON_KEY }}
+      STAGING_TEST_EMAIL: ${{ secrets.STAGING_TEST_EMAIL }}
+      STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
+      STAGING_DATABASE_CA_PEM: ${{ secrets.STAGING_DATABASE_CA_PEM }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate required configuration and write public CA
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,pathlib
+          names=['STAGING_DATABASE_URL','STAGING_ANON_KEY','STAGING_TEST_EMAIL','STAGING_TEST_PASSWORD','STAGING_DATABASE_CA_PEM']
+          missing=[name for name in names if not os.environ.get(name)]
+          if missing: raise SystemExit('Missing staging configuration: '+', '.join(missing))
+          cert=os.environ['STAGING_DATABASE_CA_PEM']
+          if '-----BEGIN CERTIFICATE-----' not in cert or 'PRIVATE KEY' in cert:
+              raise SystemExit('Supply the official public database CA PEM, never a private key')
+          path=pathlib.Path(os.environ['RUNNER_TEMP']) / 'staging-database-ca.crt'
+          path.write_text(cert)
+          path.chmod(0o644)
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write('STAGING_DATABASE_CA_FILE='+str(path)+'\nNODE_EXTRA_CA_CERTS='+str(path)+'\n')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Real Auth, API, Supabase, workers and browser
+        run: npm run test:staging:real
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-staging-summary
+          path: .staging-results/summary.json
+          if-no-files-found: ignore
+      - name: Remove temporary CA
+        if: always()
+        run: rm -f "$STAGING_DATABASE_CA_FILE"

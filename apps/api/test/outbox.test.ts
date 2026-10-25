@@ -178,3 +178,15 @@ test('outbox retries recover on the third attempt or stop after five failures', 
     assert.equal((await f.query("select * from messages where direction='out'")).rows.length, 0);
   } finally { await f.db.close(); }
 });
+
+test('a scoped outbox worker leaves another tenant or store queue untouched', async () => {
+  const f = await fixture();
+  try {
+    const id = await f.enqueue();
+    assert.equal(await processNextOutbox(f.pool, { ...options, scope: { organizationId: randomUUID(), storeId: store } }), false);
+    assert.equal(await processNextOutbox(f.pool, { ...options, scope: { organizationId: org, storeId: randomUUID() } }), false);
+    const before = (await f.query('select status,attempt_count from message_outbox where id=$1', [id])).rows[0];
+    assert.deepEqual(before, { status: 'pending', attempt_count: 0 });
+    assert.equal(await processNextOutbox(f.pool, { ...options, scope: { organizationId: org, storeId: store } }), true);
+  } finally { await f.db.close(); }
+});

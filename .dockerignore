@@ -1,0 +1,15 @@
+.git
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.crt
+**/*.pfx
+**/test-results
+**/playwright-report
+**/.impeccable
+coverage
+
+.staging-results

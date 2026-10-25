@@ -13,7 +13,7 @@ async function persist(client: PoolClient, organization: string, store: string, 
     values($1,$2,$3,'in',$4,'text',$5) on conflict(organization_id,external_message_id) where external_message_id is not null do nothing`, [organization, conversation.rows[0].id, m.id, m.body, m.sentAt]);
 }
 
-export interface WorkerOptions { maxAttempts: number; retrySeconds: number; timeoutMs: number }
+export interface WorkerOptions { maxAttempts: number; retrySeconds: number; timeoutMs: number; scope?: { organizationId: string; storeId: string } }
 // One transaction holds the row lock until completion. A crash rolls everything
 // back to the prior pending/failed state; there is no expired-lease race.
 export async function processNext(pool: Pool, options: WorkerOptions): Promise<boolean> {
@@ -21,7 +21,7 @@ export async function processNext(pool: Pool, options: WorkerOptions): Promise<b
   try {
     await client.query('begin');
     await client.query(`select set_config('statement_timeout',$1,true), set_config('idle_in_transaction_session_timeout',$1,true)`, [String(options.timeoutMs)]);
-    const result = await client.query(`select * from webhook_inbox where provider='whatsapp' and status in ('pending','failed') and attempt_count < $1 and next_attempt_at <= now() order by received_at,id for update skip locked limit 1`, [options.maxAttempts]);
+    const result = await client.query(`select * from webhook_inbox where ($2::uuid is null or (organization_id=$2 and store_id=$3)) and provider='whatsapp' and status in ('pending','failed') and attempt_count < $1 and next_attempt_at <= now() order by received_at,id for update skip locked limit 1`, [options.maxAttempts, options.scope?.organizationId ?? null, options.scope?.storeId ?? null]);
     const event = result.rows[0];
     if (!event) { await client.query('commit'); return false; }
     await client.query(`update webhook_inbox set status='processing',attempt_count=attempt_count+1,updated_at=now() where id=$1`, [event.id]);

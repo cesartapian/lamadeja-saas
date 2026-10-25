@@ -1,6 +1,6 @@
 {
   "name": "lamadeja-saas", "private": true, "version": "0.1.0",
   "workspaces": ["apps/*"],
-  "scripts": {"dev:api":"npm run dev -w @lamadeja/api", "dev:web":"npm run dev -w @lamadeja/web", "worker:outbox":"npm run worker:outbox -w @lamadeja/api", "worker":"npm run worker -w @lamadeja/api", "lint":"npm run typecheck --workspaces -- --noUnusedLocals --noUnusedParameters", "typecheck":"npm run typecheck --workspaces", "test":"node --test scripts/test/*.test.mjs && npm run test -w @lamadeja/api"},
+  "scripts": {"test:containers":"node scripts/staging/check-containers.mjs", "test:staging:real":"node scripts/staging/run-real-smoke.mjs", "dev:api":"npm run dev -w @lamadeja/api", "dev:web":"npm run dev -w @lamadeja/web", "worker:outbox":"npm run worker:outbox -w @lamadeja/api", "worker":"npm run worker -w @lamadeja/api", "lint":"npm run typecheck --workspaces -- --noUnusedLocals --noUnusedParameters", "typecheck":"npm run typecheck --workspaces", "test":"node --test scripts/test/*.test.mjs && npm run test -w @lamadeja/api"},
   "engines": {"node": ">=22"}
 }

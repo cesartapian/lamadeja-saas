@@ -34,3 +34,18 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -w @lamadeja/web
       - run: npm audit --audit-level=high
+
+  container-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Compile, run, isolate, stop and fail readiness on DB loss
+        env:
+          STAGING_CONTAINER_CA_FILE: /etc/ssl/certs/ca-certificates.crt
+        run: npm run test:containers

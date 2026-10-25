@@ -1,0 +1,52 @@
+name: lamadeja-staging
+x-runtime: &runtime
+  image: ${STAGING_API_IMAGE:-lamadeja-api:staging}
+  build:
+    context: .
+    dockerfile: deploy/Dockerfile.api
+  env_file:
+    - path: ${STAGING_ENV_FILE:?Set STAGING_ENV_FILE to a private runtime env file}
+      format: raw
+  volumes:
+    - ${STAGING_CA_FILE:?Set STAGING_CA_FILE to a trusted database CA PEM}:/run/certs/database-ca.crt:ro
+  read_only: true
+  tmpfs: [/tmp]
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 2m
+services:
+  api:
+    <<: *runtime
+    environment:
+      PORT: '4000'
+      NODE_EXTRA_CA_CERTS: /run/certs/database-ca.crt
+    ports: ['127.0.0.1:${STAGING_API_PORT:-4000}:4000']
+  inbox:
+    <<: *runtime
+    command: [node, dist/worker.js]
+    environment:
+      WORKER_HEALTH_PORT: '4001'
+      NODE_EXTRA_CA_CERTS: /run/certs/database-ca.crt
+  outbox:
+    <<: *runtime
+    profiles: [simulation]
+    command: [node, dist/outboxWorker.js]
+    environment:
+      OUTBOX_MODE: simulated
+      WORKER_HEALTH_PORT: '4001'
+      NODE_EXTRA_CA_CERTS: /run/certs/database-ca.crt
+  web:
+    image: ${STAGING_WEB_IMAGE:-lamadeja-web:staging}
+    profiles: [web]
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_API_URL: ${VITE_API_URL:-}
+    ports: ['127.0.0.1:${STAGING_WEB_PORT:-5173}:8080']
+    read_only: true
+    tmpfs: [/tmp]
+    restart: unless-stopped
+    stop_grace_period: 15s
