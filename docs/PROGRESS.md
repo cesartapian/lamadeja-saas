@@ -27,7 +27,7 @@ Esta evidencia no valida Supabase remoto ni Google real. La migración 004 solo 
 
 El origen confirmado es `https://livemanager.lamadeja.cl`. Se preparó una entrada **Conversaciones** en el repositorio `live-manager-cl`, configurada mediante `VITE_SAAS_APP_URL` y oculta hasta tener un destino válido. La URL publicada del nuevo frontend sigue sin confirmar. El enlace no comparte sesiones ni transmite tokens: el SaaS restaura su propia sesión o pide Google mediante PKCE.
 
-[Recorrido, activación y validación pendientes](LIVE_MANAGER_ENTRY.md). Código local preparado; no publicado ni desplegado.
+[Recorrido, activación y validación pendientes](LIVE_MANAGER_ENTRY.md). Código local preparado; no publicado ni desplegado. Paso a producción autorizado por el usuario, pero bloqueado por falta de acceso autenticado a Vercel y destino SaaS confirmado. Se guardó el requisito personal `VERCEL_TOKEN` en el borrador del entorno, sin valor; pendiente de configuración segura.
 
 ## Pendiente manual: migración 004 en Supabase
 

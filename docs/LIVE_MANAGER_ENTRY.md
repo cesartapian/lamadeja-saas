@@ -40,3 +40,14 @@ Un puente SSO sin interacción es una decisión posterior y no forma parte de es
 5. Probar desde `livemanager.lamadeja.cl` tanto el acceso autorizado como los casos sin sesión y sin membresía. Registrar el resultado en el tablero.
 
 Las pruebas del repositorio Live Manager verifican destinos seguros, visibilidad condicional, accesibilidad con menú colapsado y atributos del enlace. La compilación completa pasó. Esto no prueba navegación productiva ni login real de extremo a extremo.
+
+## Solicitud de paso a producción
+
+El usuario autorizó pasar el enlace a producción. La ejecución está bloqueada, no completada:
+
+- Cloud no tiene acceso autenticado a Vercel: no hay token inyectado, sesión CLI ni conector disponible.
+- Se guardó en el borrador del entorno el requisito personal `VERCEL_TOKEN`, limitado al destino HTTPS `api.vercel.com`, sin ningún valor. Debe completarse de forma segura en los ajustes del entorno; guardar el requisito no autentica ni despliega.
+- La consulta de despliegues GitHub de Live Manager respondió 403; esto no demuestra que Vercel no tenga despliegues.
+- El origen Live Manager está confirmado; el destino publicado del SaaS sigue sin confirmar. No activar el enlace con una dirección inventada.
+
+Al disponer del acceso, inspeccionar los proyectos y despliegues existentes, identificar la URL SaaS y su API y comprobar su configuración, antes de configurar `VITE_SAAS_APP_URL` y desplegar Live Manager. La autorización de producción no elimina la revisión de código ni convierte pruebas sintéticas en una validación real de Google/Supabase. No habilitar envíos WhatsApp reales como parte de publicar este enlace.
