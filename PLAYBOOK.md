@@ -1,30 +1,26 @@
-# Playbook — desarrollo ágil y trazable del WhatsApp SaaS
+# Playbook — WhatsApp SaaS: Codex construye, Claude Code revisa y fusiona
 
-## Objetivo y ámbitos
-El usuario define visión y reglas de negocio. ChatGPT/Codex planifica y ejecuta autónomamente en `lamadeja-saas`; Claude Code revisa de forma independiente. **Live Manager no se modifica.** El usuario es el único que autoriza despliegues a producción y acciones sobre sistemas reales fuera del alcance previamente autorizado.
+## Ámbitos y autoridad
+- **WhatsApp SaaS (`cesartapian/lamadeja-saas`):** repositorio de desarrollo autónomo. Codex prepara código y PRs; Claude Code revisa y ejecuta el merge a `main` cuando no quedan observaciones y los controles aplicables pasan. El usuario no tiene que aprobar cada merge.
+- **Live Manager:** repositorio independiente e intacto. Solo el usuario autoriza el merge a `main`, que representa su paso a producción. Este playbook no modifica sus instrucciones ni permisos.
+- **La Madeja:** sistemas operativos existentes fuera del alcance del SaaS. No alterar sistemas externos o datos reales accidentalmente.
 
-## Ruta de funcionalidad
-1. **Idea:** registrar en `docs/features/<slug>.md` intención original, valor de negocio, límites, criterios observables y decisiones pendientes. No inventar decisiones.
-2. **Plan:** Codex propone implementación, fases, pruebas, seguridad, efectos y reversión. Distinguir decisiones técnicas autónomas de decisiones reservadas al usuario.
-3. **Revisión previa:** para funcionalidades sustanciales, Claude Code revisa el plan contra intención y restricciones. Registrar `APROBADO PARA IMPLEMENTAR`, `CAMBIOS SOLICITADOS` o `BLOQUEADO` con enlace verificable. Sin aprobación registrada no se afirma que esté aprobado.
-4. **Desarrollo autónomo:** Codex implementa, refactoriza, prueba y corrige en su rama. No necesita aprobación humana para cada detalle técnico dentro del alcance acordado. Si cambia el objetivo de negocio, actualizar plan y solicitar revisión nuevamente.
-5. **Revisión final:** PR con matriz criterio→prueba, resultados reales, limitaciones, riesgos y respuesta a comentarios. Claude Code revisa y deja evidencia de aprobación o cambios solicitados.
-6. **Integración a `main` del SaaS:** permitida sin autorización individual del usuario **solo** tras revisión técnica favorable registrada, checks requeridos satisfactorios y cumplimiento de protecciones GitHub. Si faltan controles, dejar abierto. Merge no es despliegue.
-7. **Producción / impacto real:** exclusivamente por autorización explícita del usuario; incluye activar envíos reales de WhatsApp, afectar tiendas o usuarios reales, o desplegar servicios productivos.
+## Flujo para nuevas funcionalidades sustanciales
+1. **Idea:** ChatGPT/Codex registra la intención del usuario, reglas de negocio, criterios de aceptación y preguntas abiertas en `docs/features/<slug>.md`.
+2. **Plan:** Codex propone implementación, pruebas, riesgos y alcance. Decide autónomamente detalles técnicos; no inventa decisiones de negocio.
+3. **Revisión del plan:** Claude Code evalúa intención, alcance y viabilidad; deja constancia verificable de `APROBADO PARA IMPLEMENTAR` o `CAMBIOS SOLICITADOS`. No asumir aprobación por silencio.
+4. **Implementación:** Codex desarrolla y corrige autónomamente en rama independiente. Si cambia la intención de negocio, actualizar y volver a revisar el plan.
+5. **PR y revisión:** adjuntar evidencia de criterios y pruebas. Claude Code solicita correcciones hasta quedar conforme; registra la revisión.
+6. **Merge:** **Claude Code realiza el merge a `main` del SaaS** cuando aprueba y se cumplen los checks y protecciones aplicables de GitHub. No necesita autorización individual del usuario. Si no puede ejecutarlo, informa el bloqueo; no se declara fusionado.
 
 ## Ruta rápida
-Para documentación, correcciones técnicas pequeñas y refactorizaciones sin cambio funcional sustancial: rama → cambio → pruebas proporcionadas → PR → revisión Claude Code → merge en `main` del SaaS si los controles pasan. No exigir una aprobación de plan independiente para cada detalle.
+Para correcciones técnicas pequeñas, documentación y refactorizaciones sin cambio sustancial de negocio: Codex crea rama, implementa y prueba, abre PR; Claude Code revisa y fusiona si corresponde. No imponer revisión separada de plan.
 
-## Roles
-- **Usuario:** define negocio, resuelve ambigüedades de alcance, autoriza producción.
-- **ChatGPT/Codex:** mantiene contexto, implementa y entrega evidencia verificable.
-- **Claude Code:** revisa planes sustanciales y PRs; registra decisiones técnicas. Un comentario solicitando revisión no equivale a una revisión ejecutada.
+## Evidencia
+Vincular intención y criterios cuando aplique, resultados reales de pruebas, limitaciones, riesgos y observaciones resueltas. Una solicitud de revisión no equivale a aprobación.
 
-## Evidencia mínima
-Documento funcional cuando aplique; criterios y pruebas vinculadas; comandos y resultados ejecutados realmente; riesgos y reversión; resolución de observaciones. Señalar expresamente pruebas pendientes.
+## Límites
+No tocar repositorio ni producción de Live Manager; no modificar La Madeja operativa. Evitar envíos reales de WhatsApp, cambios destructivos o impactos sobre clientes/servicios externos fuera del alcance autorizado. Estos límites no constituyen un requisito de aprobación del usuario para fusionar PRs ordinarios del SaaS.
 
-## Límites de integración
-No modificar repositorio Live Manager ni tienda La Madeja desde este flujo. No habilitar webhooks o envíos reales, migraciones destructivas ni desplegar a producción sin autorización. El desarrollo y las pruebas aisladas del SaaS no requieren permisos repetidos. Las migraciones persistentes en recursos alojados requieren autorización cuando afectan datos/servicios reales o exceden el alcance ya autorizado.
-
-## Aprendizaje
-Registrar aquí mejoras recurrentes del proceso. El PR de este playbook no autoriza por sí solo cambios productivos.
+## Mejora continua
+Documentar aprendizajes sin bloquear iteraciones técnicas rutinarias.
