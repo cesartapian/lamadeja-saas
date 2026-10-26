@@ -52,6 +52,20 @@ test('PostgreSQL: Nadia inbox, idempotency, conversation pause, fencing and simu
     await pool.query("insert into stores(id,organization_id,name) values($1,$2,'Test'),($3,$4,'Foreign')", [store, org, otherStore, otherOrg]);
     await pool.query("insert into organization_members values($1,$2,'admin'),($1,$3,'agent')", [org, user, agent]);
     await pool.query("insert into channel_connections(organization_id,store_id,provider,external_account_id) values($1,$2,'whatsapp','nadia-phone')", [org, store]);
+    await t.test('status GET returns initial policy without creating settings or jobs', async () => {
+      const contact = randomUUID(), conversation = randomUUID();
+      const channel = (await pool.query('select id from channel_connections where organization_id=$1 and store_id=$2', [org, store])).rows[0].id;
+      await pool.query('insert into contacts(id,organization_id,store_id) values($1,$2,$3)', [contact, org, store]);
+      await pool.query('insert into conversations(id,organization_id,store_id,contact_id,channel_connection_id) values($1,$2,$3,$4,$5)', [conversation, org, store, contact, channel]);
+      for (const token of ['admin', 'agent']) {
+        const response = await api(`/conversations/${conversation}/nadia`, undefined, token);
+        assert.equal(response.status, 200);
+        const status = await response.json(); assert.equal(status.active, true); assert.deepEqual(status.runs, []);
+      }
+      for (const table of ['nadia_settings', 'nadia_conversations', 'nadia_runs', 'message_outbox']) {
+        assert.equal((await pool.query(`select count(*)::int as count from ${table}`)).rows[0].count, 0);
+      }
+    });
     await t.test('a repeated inbound message creates exactly one generation and one attributed simulation', async () => {
       const first = await incoming('Hola, ¿qué colores tienen?');
       const varied = { ...first.payload, redelivery_marker: true };

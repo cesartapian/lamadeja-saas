@@ -1,7 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
-import { ensureNadiaSettings, setNadiaPaused } from '../lib/nadiaStore.js';
+import { setNadiaPaused } from '../lib/nadiaStore.js';
 
 export function nadiaRouter(database: Pool, auth: RequestHandler, available: boolean) {
   const router = Router();
@@ -13,10 +13,9 @@ export function nadiaRouter(database: Pool, auth: RequestHandler, available: boo
     const { organizationId, storeId, userId } = res.locals.auth;
     const client = await database.connect().catch(error => { next(error); return null; }); if (!client) return;
     try {
-      await client.query('begin');
+      await client.query('begin read only');
       if (!(await client.query('select 1 from conversations where organization_id=$1 and store_id=$2 and id=$3', [organizationId, storeId, id.data])).rowCount) { await client.query('rollback'); res.sendStatus(404); return; }
-      await ensureNadiaSettings(client, organizationId, storeId, id.data);
-      const policy = (await client.query(`select enabled from nadia_conversations where organization_id=$1 and store_id=$2 and conversation_id=$3`, [organizationId, storeId, id.data])).rows[0];
+      const policy = (await client.query(`select coalesce((select enabled from nadia_conversations where organization_id=$1 and store_id=$2 and conversation_id=$3),true) as enabled`, [organizationId, storeId, id.data])).rows[0];
       const member = (await client.query('select role from organization_members where organization_id=$1 and user_id=$2', [organizationId, userId])).rows[0];
       const runs = await client.query('select id,state,error_category,attempt_count,created_at from nadia_runs where organization_id=$1 and store_id=$2 and conversation_id=$3 order by created_at desc,id desc limit 10', [organizationId, storeId, id.data]);
       await client.query('commit');
