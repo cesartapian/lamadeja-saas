@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { parseWhatsapp, type IncomingText } from './parseWhatsapp.js';
 import { ZodError } from 'zod';
+import { persistSandboxReceipt } from './sandboxReceipts.js';
 
 async function persist(client: PoolClient, organization: string, store: string, m: IncomingText) {
   const channel = await client.query(`select id from channel_connections where organization_id=$1 and store_id=$2 and provider='whatsapp' and external_account_id=$3`, [organization, store, m.phoneId]);
@@ -27,8 +28,9 @@ export async function processNext(pool: Pool, options: WorkerOptions): Promise<b
     await client.query(`update webhook_inbox set status='processing',attempt_count=attempt_count+1,updated_at=now() where id=$1`, [event.id]);
     await client.query('savepoint business_work');
     try {
-      const { messages, notes } = parseWhatsapp(event.payload);
+      const { messages, receipts, notes } = parseWhatsapp(event.payload);
       for (const message of messages) await persist(client, event.organization_id, event.store_id, message);
+      for (const receipt of receipts) await persistSandboxReceipt(client, event.organization_id, event.store_id, receipt);
       await client.query(`update webhook_inbox set status='processed',processed_at=now(),updated_at=now(),last_error=null,processing_notes=$2::jsonb where id=$1`, [event.id, JSON.stringify(notes)]);
     } catch (error) {
       await client.query('rollback to savepoint business_work');

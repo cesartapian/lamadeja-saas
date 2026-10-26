@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 import { beginSandboxDispatch, claimSandboxJob, completeSandboxDispatch, recoverSandboxClaim, type DispatchOutcome, type SandboxJob } from './sandboxDispatch.js';
+import { reconcileSandboxReceipts } from './sandboxReceipts.js';
 
 const uuid = z.string().uuid();
 const scopeSchema = z.object({ organizationId: uuid, storeId: uuid, channelId: uuid });
@@ -33,7 +34,8 @@ export function sandboxRepository(pool: Pool, scopeInput: SandboxScope) {
     client.on('error', onConnectionError);
     try {
       await client.query('begin');
-      await client.query("set local statement_timeout='5s'; set local idle_in_transaction_session_timeout='10s'");
+      await client.query("set local statement_timeout='5s'");
+      await client.query("set local idle_in_transaction_session_timeout='10s'");
       const result = await work(client);
       await client.query('commit');
       return result;
@@ -68,6 +70,9 @@ export function sandboxRepository(pool: Pool, scopeInput: SandboxScope) {
     });
   }
   return {
+    reconcileReceipts(limit = 100) {
+      return transaction(client => reconcileSandboxReceipts(client, scope, limit));
+    },
     async enqueue(input: { conversationId: string; requestedBy: string; idempotencyKey: string; recipient: string; body: string; maxAttempts?: number }): Promise<{ job: StoredSandboxJob; created: boolean }> {
       const data = z.object({ conversationId: uuid, requestedBy: uuid, idempotencyKey: uuid,
         recipient: z.string().regex(/^\+[1-9][0-9]{7,14}$/), body: z.string().max(4096).refine(value => value.trim().length > 0),

@@ -49,7 +49,7 @@ try {
   const port = Number(mapped.trim().split(':').at(-1));
   if (!Number.isInteger(port)) throw new Error('No fixture port');
   database = new Pool({ connectionString: `postgresql://synthetic:${syntheticPassword}@127.0.0.1:${port}/lamadeja_test`, connectionTimeoutMillis: 5000 });
-  for (const file of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql']) {
+  for (const file of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql']) {
     await database.query(await readFile(`packages/database/migrations/${file}`, 'utf8'));
   }
   for (const [organization, shop] of [[org, store], [otherOrg, otherStore]]) {
