@@ -1,38 +1,33 @@
 ## Tipo de cambio
-- [ ] Plan / documentación
-- [ ] Implementación
-- [ ] Corrección
+- [ ] Funcionalidad sustancial
+- [ ] Corrección / refactorización técnica
+- [ ] Documentación / proceso
 
-## Contexto e intención de negocio
-Documento de funcionalidad: `docs/features/<slug>.md`
-Issue relacionado:
-Objetivo original y resultado esperado:
+## Intención y alcance
+Documento de funcionalidad (si aplica):
+Objetivo de negocio:
+Cambios realizados y exclusiones:
 
 ## Revisión previa del plan (solo funcionalidades sustanciales)
-Enlace a revisión de Claude Code:
-Estado: PENDIENTE / APROBADO PARA IMPLEMENTAR / CAMBIOS SOLICITADOS / BLOQUEADO / NO APLICA (justificar)
-Si se cambió alcance, indicar nueva revisión:
+Enlace:
+Estado: APROBADO PARA IMPLEMENTAR / CAMBIOS SOLICITADOS / BLOQUEADO / NO APLICA (justificar)
 
-## Cambios y límites
-Qué cambia:
-Qué NO cambia:
-Impacto sobre La Madeja / Live Manager productivos:
-
-## Matriz de aceptación y evidencia
-| Criterio | Evidencia o test | Resultado |
+## Evidencia
+| Criterio / requisito | Prueba o evidencia | Resultado |
 | --- | --- | --- |
-| CA-01 | | |
+| | | |
 
-## Validación real
-Comandos ejecutados y resultados:
-Pruebas no ejecutadas y motivo:
-Riesgos / migraciones / rollback:
+Comandos y resultados reales:
+Pruebas no ejecutadas y por qué:
+Riesgos, migraciones y rollback:
 
-## Revisión final de Claude Code
-Enlace y resultado de revisión:
-Observaciones y commits que las resuelven:
+## Revisión independiente de Claude Code
+Enlace a revisión final:
+Resultado:
+Observaciones y commits de corrección:
 
-## Autorizaciones
-- [ ] Merge a main del SaaS solo tras revisión técnica favorable registrada y checks requeridos; no exige aprobación individual del usuario cuando no hay impacto real.
-- [ ] Despliegue a producción solo con autorización explícita del usuario.
-- [ ] Live Manager y La Madeja productivos intactos; sin envíos reales ni acciones de impacto real no autorizadas.
+## Integración y límites
+- [ ] Claude Code revisa y, si aprueba y pasan los checks aplicables, realiza el merge a `main` de WhatsApp SaaS sin aprobación individual del usuario.
+- [ ] No se considera aprobada una revisión por silencio.
+- [ ] Live Manager no se modifica; allí solo el usuario autoriza integración a `main`.
+- [ ] La Madeja operativa y sistemas externos reales permanecen fuera del alcance de las pruebas de SaaS.
