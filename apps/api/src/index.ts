@@ -7,6 +7,7 @@ import { whatsappRouter } from './routes/whatsapp.js';
 import { pool } from './lib/database.js';
 import { outboxRouter } from './routes/outbox.js';
 import { conversationRouter } from './routes/conversations.js';
+import { nadiaRouter } from './routes/nadia.js';
 import type { ErrorRequestHandler } from 'express';
 
 const app = express();
@@ -25,8 +26,10 @@ app.use('/webhooks/whatsapp', express.raw({ type: 'application/json', limit: '1m
 app.use(express.json({ limit: '1mb' }));
 app.get('/api/me', requireAuth, (_req, res) => res.json(res.locals.auth));
 app.get('/api/modules', requireAuth, (_req, res) => res.json({ messaging: 'scaffold', commerce: 'scaffold', agents: 'scaffold', crm: 'scaffold' }));
-app.use('/api', outboxRouter(pool, requireAuth, { enabled: config.OUTBOX_MODE === 'simulated', maxAttempts: config.WORKER_MAX_ATTEMPTS }));
+app.use('/api', outboxRouter(pool, requireAuth, { enabled: config.OUTBOX_MODE === 'simulated', maxAttempts: config.WORKER_MAX_ATTEMPTS,
+  nadiaEnabled: config.NADIA_MODE === 'simulated' && Boolean(config.NVIDIA_API_KEY && config.NADIA_MODEL) }));
 app.use('/api', conversationRouter(pool, requireAuth));
+app.use('/api', nadiaRouter(pool, requireAuth, config.NADIA_MODE === 'simulated' && config.OUTBOX_MODE === 'simulated' && Boolean(config.NVIDIA_API_KEY && config.NADIA_MODEL)));
 const errorHandler: ErrorRequestHandler = (_error, _req, res, _next) => { res.status(500).json({ error: 'Request failed' }); };
 app.use(errorHandler);
 const server = app.listen(config.PORT, () => console.info(`API listening on ${config.PORT}`));

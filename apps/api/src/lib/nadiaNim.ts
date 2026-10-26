@@ -15,6 +15,24 @@ export interface NadiaOptions {
   fetcher?: typeof fetch;
 }
 
+const ENDPOINT = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const INTRO = 'Soy Nadia, asistente virtual con inteligencia artificial.';
+async function boundedResponse(response: Response): Promise<unknown> {
+  if (!response.body) throw new NadiaInferenceError('invalid_response');
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let bytes = 0, text = '';
+  try {
+    while (true) {
+      const chunk = await reader.read(); if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > 65536) { await reader.cancel(); throw new NadiaInferenceError('invalid_response'); }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    try { return JSON.parse(text + decoder.decode()); }
+    catch { throw new NadiaInferenceError('invalid_response'); }
+  } finally { reader.releaseLock(); }
+}
+
 const SYSTEM = `Eres Nadia, una asistente virtual con inteligencia artificial que atiende por WhatsApp.
 Responde en español natural, cálido y breve. Interpreta la intención real del mensaje.
 Si es el primer contacto, preséntate como "Nadia, asistente virtual con inteligencia artificial".
@@ -32,43 +50,51 @@ export class NadiaInferenceError extends Error {
 }
 
 export async function generateNadiaReply(options: NadiaOptions): Promise<NadiaResult> {
-  if (!options.apiKey.trim() || !options.model.trim()) throw new NadiaInferenceError('configuration');
-  if (!options.messages.length || options.messages.length > 20 ||
+  if (!options.apiKey.trim() || /\s/.test(options.apiKey) || !options.model.trim() || options.model.length > 200) throw new NadiaInferenceError('configuration');
+  if (!options.messages.length || options.messages.length > 20 || options.messages.reduce((total, message) => total + message.content.length, 0) > 12000 ||
       options.messages.some(m => !['user','assistant'].includes(m.role) || !m.content.trim() || m.content.length > 4096)) {
     throw new NadiaInferenceError('configuration');
   }
-  const endpoint = options.endpoint ?? 'https://integrate.api.nvidia.com/v1/chat/completions';
-  const parsed = new URL(endpoint);
-  if (parsed.protocol !== 'https:' || (parsed.hostname !== 'integrate.api.nvidia.com' && !options.fetcher)) {
-    throw new NadiaInferenceError('configuration');
-  }
+  const endpoint = options.endpoint ?? ENDPOINT;
+  const timeoutMs = options.timeoutMs ?? 12000;
+  if (endpoint !== ENDPOINT || !Number.isInteger(timeoutMs) || timeoutMs < 10 || timeoutMs > 30000) throw new NadiaInferenceError('configuration');
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.min(options.timeoutMs ?? 12000, 30000));
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const response = await (options.fetcher ?? fetch)(endpoint, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${options.apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: options.model,
-        stream: false,
-        temperature: 0.3,
-        max_tokens: 256,
-        messages: [
-          { role: 'system', content: SYSTEM + (options.firstContact ? '\nEs el primer contacto: preséntate.' : '\nContinúa la conversación sin presentarte de nuevo.') },
-          ...options.messages,
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (response.status === 429) throw new NadiaInferenceError('rate_limit');
-    if (!response.ok) throw new NadiaInferenceError('provider');
-    const payload: unknown = await response.json();
-    const text = (payload as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message?.content;
-    if (typeof text !== 'string' || !text.trim() || text.length > 4096) throw new NadiaInferenceError('invalid_response');
-    return { text: text.trim(), model: options.model };
+    const invoke = async (): Promise<NadiaResult> => {
+      const response = await (options.fetcher ?? fetch)(endpoint, {
+        method: 'POST', redirect: 'error',
+        headers: { authorization: `Bearer ${options.apiKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: options.model,
+          stream: false,
+          temperature: 0.3,
+          max_tokens: 256,
+          ...(options.model.startsWith('nvidia/nemotron-3-') ? { chat_template_kwargs: { enable_thinking: false } } : {}),
+          messages: [
+            { role: 'system', content: SYSTEM + (options.firstContact ? '\nEs el primer contacto. La aplicación antepondrá la presentación de Nadia; responde a la intención sin repetirla.' : '\nContinúa la conversación sin presentarte de nuevo.') },
+            ...options.messages,
+          ],
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new NadiaInferenceError(response.status === 429 ? 'rate_limit' : 'provider');
+      }
+      const payload = await boundedResponse(response);
+      const text = (payload as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message?.content;
+      if (typeof text !== 'string' || !text.trim() || text.length > 4096) throw new NadiaInferenceError('invalid_response');
+      const reply = options.firstContact && !text.trim().startsWith(INTRO) ? `${INTRO} ${text.trim()}` : text.trim();
+      if (reply.length > 4096) throw new NadiaInferenceError('invalid_response');
+      return { text: reply, model: options.model };
+    };
+    return await Promise.race([invoke(), new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => { controller.abort(); reject(new NadiaInferenceError('timeout')); }, timeoutMs);
+    })]);
   } catch (error) {
     if (error instanceof NadiaInferenceError) throw error;
     if (controller.signal.aborted) throw new NadiaInferenceError('timeout');
     throw new NadiaInferenceError('provider');
-  } finally { clearTimeout(timer); }
+  } finally { if (timer) clearTimeout(timer); controller.abort(); }
 }

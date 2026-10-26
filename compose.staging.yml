@@ -50,3 +50,11 @@ services:
     tmpfs: [/tmp]
     restart: unless-stopped
     stop_grace_period: 15s
+
+  nadia:
+    <<: *runtime
+    profiles: [nadia]
+    command: [node, dist/nadiaWorker.js]
+    environment:
+      WORKER_HEALTH_PORT: '4001'
+      NODE_EXTRA_CA_CERTS: /run/certs/database-ca.crt

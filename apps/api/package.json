@@ -11,7 +11,9 @@
     "worker": "tsx src/worker.ts",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "node --import tsx --test test/*.test.ts",
+    "worker:nadia": "tsx src/nadiaWorker.ts",
+    "start:nadia": "node dist/nadiaWorker.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",

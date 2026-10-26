@@ -19,6 +19,7 @@ async function authenticate(page: Page) {
 }
 async function apiRoute(route: Route) {
   const url = new URL(route.request().url());
+  if (url.pathname.endsWith('/nadia')) return route.fulfill({ json: { available: false } });
   if (url.pathname === '/api/conversations') return route.fulfill({ json: { conversations, hasMore: true, nextOffset: 25 } });
   if (url.pathname.includes('/messages')) return route.fulfill({ json: { messages: [message('newest', 'Hola, ¿tienen lana merino en color crudo?'), message('previous', '¡Hola! Quisiera consultar por los colores disponibles.')], hasMore: true, nextOffset: 50 } });
   const contact = url.pathname.includes(second) ? conversations[1] : conversations[0];
@@ -225,4 +226,43 @@ test('disabled simulation keeps inbox read-only; exhausted jobs are labeled as f
   await expect(page.getByRole('button', { name: 'Simular envío' })).toHaveCount(0);
   mode = 'simulated'; await page.reload(); await openFirst(page);
   await expect(page.getByText('Falló la simulación · Intentos 2/2')).toBeVisible();
+});
+
+test('Nadia pauses only the selected conversation and labels AI simulations', async ({ page }) => {
+  await authenticate(page);
+  let enabled = true;
+  const toggles: string[] = [];
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/nadia')) {
+      if (route.request().method() === 'POST') { toggles.push(path); enabled = route.request().postDataJSON().enabled; return route.fulfill({ json: { enabled } }); }
+      return route.fulfill({ json: { available: true, active: enabled, canManage: true, runs: [] } });
+    }
+    if (path === '/api/outbox/capabilities') return route.fulfill({ json: { mode: 'simulated', nadia: true } });
+    if (path.endsWith('/outbox')) return route.fulfill({ json: { items: [{ id: first, origin: 'nadia', body: 'Soy Nadia, asistente virtual con inteligencia artificial.', status: enabled ? 'simulated' : 'cancelled', attempt_count: 1, max_attempts: 5 }], hasMore: false, nextOffset: 25 } });
+    return apiRoute(route);
+  });
+  await page.goto('/'); await openFirst(page);
+  const toggle = page.getByRole('switch', { name: 'Nadia en esta conversación' });
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByText('Nadia · IA · Simulado · sin envío real', { exact: false })).toBeVisible();
+  await toggle.click(); await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText('Pausada · no se generan respuestas automáticas')).toBeVisible();
+  expect(toggles).toEqual([`/api/conversations/${first}/nadia`]);
+  await expect(page.getByRole('switch')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+});
+
+test('Nadia permission rejection keeps the authenticated inbox open', async ({ page }) => {
+  await authenticate(page);
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/nadia')) return route.request().method() === 'POST' ? route.fulfill({ status: 403 })
+      : route.fulfill({ json: { available: true, active: true, canManage: true, runs: [] } });
+    return apiRoute(route);
+  });
+  await page.goto('/'); await openFirst(page);
+  await page.getByRole('switch', { name: 'Nadia en esta conversación' }).click();
+  await expect(page.getByText('No pudimos cambiar la pausa de Nadia. Tu sesión sigue abierta.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Camila Soto', exact: true, level: 2 })).toBeVisible();
 });

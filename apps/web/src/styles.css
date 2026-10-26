@@ -752,3 +752,5 @@ time {
 .outbox-statuses li { border-top:1px solid #e7e1ea; padding:8px 0; overflow-wrap:anywhere; }
 .outbox-statuses p { margin:0 0 4px; white-space:pre-wrap; }
 .outbox-statuses span { font-size:12px; color:#604178; }
+
+.nadia-panel{padding:12px 20px;border-top:1px solid #e7e1ea;background:#f7f5f9}.nadia-panel p{margin:6px 0}.nadia-controls{display:flex;gap:8px;flex-wrap:wrap}

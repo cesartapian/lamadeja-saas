@@ -35,7 +35,7 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
   const expire = (id: string) => pool.query("update sandbox_dispatch set lease_until=clock_timestamp()-interval '1 second' where id=$1", [id]);
   try {
     await admin.query(`create schema ${schema}`);
-    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql']) {
+    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql']) {
       await pool.query(await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8'));
     }
     await t.test('enqueue is idempotent across connections and rejects cross-scope/channel data', async () => {
