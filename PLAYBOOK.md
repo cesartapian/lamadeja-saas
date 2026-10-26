@@ -24,3 +24,13 @@ No tocar repositorio ni producción de Live Manager; no modificar La Madeja oper
 
 ## Mejora continua
 Documentar aprendizajes sin bloquear iteraciones técnicas rutinarias.
+
+## Regla de avance sin espera pasiva
+
+Después de cada PR, Codex selecciona el siguiente pendiente del plan autorizado. Si CI o Claude siguen trabajando, utiliza una rama independiente para mantenimiento acotado, evidencia o el próximo plan. Si el siguiente incremento depende del PR abierto, no lo integra antes de confirmar el merge; trabaja primero en otro pendiente sin esa dependencia.
+
+Tras el merge registrado de Claude, continúa la implementación ya autorizada sin una nueva orden del usuario. Corrige observaciones técnicas con sus pruebas y conserva los límites de seguridad, revisión de planes funcionales y sistemas externos. No confundir el permiso para avanzar con permiso para desplegar, contratar servicios o enviar mensajes reales.
+
+Solo las decisiones funcionales, configuración indispensable, impactos externos pendientes o el agotamiento del trabajo autorizado justifican devolver un bloqueo. Una espera de CI por sí sola no basta cuando hay trabajo independiente. Registrar explícitamente pruebas omitidas por el usuario; no presentarlas como aprobadas ni exigirlas de nuevo para esta misma revisión.
+
+Al terminar una sesión, dejar el pendiente concreto y su bloqueo en el plan; no prometer ejecución continua en segundo plano si no hay un mecanismo configurado que la ejecute.

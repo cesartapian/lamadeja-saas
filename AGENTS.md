@@ -8,6 +8,17 @@
 - Mantener separados los entornos y datos: no afectar La Madeja, Live Manager ni servicios/clientes reales mediante pruebas del SaaS. Cualquier operación con impacto externo real o fuera del alcance acordado requiere decisión explícita antes de ejecutarse.
 - No introducir una autorización humana adicional para el merge a `main` de WhatsApp SaaS. Las protecciones técnicas que existan en GitHub deben respetarse, pero no se presupone que estén configuradas.
 
+# Continuidad autónoma durante una tarea activa
+
+- Después de publicar o corregir un PR, revisar el siguiente pendiente autorizado; no terminar la tarea únicamente para esperar CI, revisión o merge si hay trabajo independiente disponible.
+- Mientras un PR está en revisión, avanzar en otra rama con correcciones técnicas, pruebas, documentación o preparación del siguiente plan. No construir una dependencia sobre cambios sin fusionar ni saltar la revisión funcional de `PLAYBOOK.md`.
+- Al registrarse el merge de Claude, actualizar el estado y continuar con el siguiente incremento sin pedir al usuario que diga «avanza». Una aprobación sin merge no libera una dependencia.
+- Resolver observaciones técnicas de Claude autónomamente, incluidas las no bloqueantes cuando sean correcciones acotadas. Conservar evidencia y no inventar resultados.
+- Usar comprobaciones acotadas del estado de GitHub; evitar ciclos de espera/polling que sustituyan trabajo útil o repetir suites sin cambios que lo justifiquen.
+- Detener solo el trabajo dependiente cuando falte una decisión funcional, una credencial/capacidad indispensable, autorización de impacto externo o no quede trabajo autorizado independiente. Completar lo demás y comunicar el bloqueo concreto.
+- Una prueba dispensada por el usuario queda como NO EJECUTADA, nunca APROBADA. No reintroducirla como bloqueo sin un requisito nuevo.
+- Esta regla guía las sesiones activas; no implica un servicio de ejecución en segundo plano fuera de la sesión.
+
 # Trazabilidad funcional
 
 - Para funcionalidades sustanciales, seguir `PLAYBOOK.md` y registrar la intención de negocio en `docs/features/<slug>.md`.
