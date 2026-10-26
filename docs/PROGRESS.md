@@ -93,3 +93,7 @@ El 26 de octubre, por autorización explícita del usuario, se aplicó únicamen
 ## Confirmaciones de entrega en desarrollo
 
 006 y worker entrante: confirma firma, persiste/deduplica statuses, aísla por canal/tenant/destinatario y mantiene una proyección sin retrocesos (read > delivered > failed > sent), separada del estado accepted. Conserva receipts anticipados y permite conciliarlos por lotes sin bloquearse con filas ya consistentes. Pendiente revisión/merge, aplicación de 006 y prueba remota ampliada. Sin transporte Meta ni scheduler de envío.
+
+## Receipts integrados y siguiente incremento
+
+PR #21 aprobado por Claude tras corregir concurrencia por mensaje y tolerancia a statuses no soportados. 006 aplicada y verificada en desarrollo. Ejecución real [40320701757](https://github.com/cesartapian/lamadeja-saas/actions/runs/40320701757) aprobada con 33 comprobaciones, limpieza completa y cero envíos reales. El adaptador sandbox se prepara en la siguiente rama: no está montado ni tiene credenciales/configuración activa; pruebas con transporte inyectado.
