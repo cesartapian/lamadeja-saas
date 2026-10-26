@@ -48,3 +48,7 @@ Actualizar [el tablero](progress.html) y [el resumen](PROGRESS.md) con resultado
 ## Automatización remota preparada
 
 [STAGING.md](STAGING.md) describe las imágenes compiladas, el job de contenedores y el workflow de servicios reales. El job real pasó en la ejecución [40229617433](https://github.com/cesartapian/lamadeja-saas/actions/runs/40229617433): 21 comprobaciones y limpieza confirmada por el artefacto. Los cinco secretos y la cuenta dedicada están configurados. La compra/provisión de hosting permanece pendiente. Los workers ahora usan su ámbito configurado para no consumir filas de otros tenants durante pruebas o despliegues.
+
+## Migración 005: aplicada y verificada
+
+El usuario autorizó la aplicación de 005 después de integrar PR #18. Se comprobó primero que faltaban tabla/constraint; se aplicó solo esa transacción al proyecto de desarrollo. Verificados FK por conversación/canal/tienda/organización, estados/claims, índices y RLS sin políticas de navegador. Cola inicialmente vacía y conteos de datos existentes sin cambios. No repetir 001–005. El diagnóstico SQL de metadatos ya incluye sandbox_dispatch. La prueba remota ampliada añade operaciones sintéticas del repositorio y su limpieza; no envía a Meta.
