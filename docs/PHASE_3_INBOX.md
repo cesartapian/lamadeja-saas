@@ -23,7 +23,7 @@ Selection moves focus to the conversation heading, and returning to the list res
 
 Existing endpoints remain backward compatible. `limit` accepts 1–100 and defaults to 100. `offset` retains its 0–100000 bound. Both list responses add `hasMore` and `nextOffset`. A lookahead row determines whether another page exists.
 
-Conversation rows add `contact_name`, `contact_phone`, `last_message`, `last_message_type` and `last_message_at`. Contact and latest-message joins apply organization/store restrictions. Messages accept `order=asc|desc`; the existing ascending order remains the default. The UI requests descending pages for recent history.
+Conversation rows add `contact_name`, `contact_phone`, `last_message`, `last_message_type` and `last_message_at`. Contact and latest-message joins apply organization/store restrictions. Messages accept `order=asc|desc`; the existing ascending order remains the default. Both message history and the latest-message preview use `coalesce(sent_at, created_at)`, with `id` breaking equal-time ties. The preview timestamp uses that same effective time, so delayed delivery does not override a newer message. The UI requests descending pages for recent history.
 
 Pagination is offset-based, not a consistent snapshot. Concurrent arrivals can shift page boundaries; client-side deduplication avoids duplicate rows, and refresh restarts the list. Live subscriptions and cursor pagination are future improvements. The timestamp display uses the browser's local timezone and Spanish Chilean formatting; stored timestamps remain UTC.
 

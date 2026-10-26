@@ -13,6 +13,10 @@ El frontend puede publicarse en Vercel. La API Express y los dos workers necesit
 | Koyeb Free | Una instancia de 512 MB/0.1 vCPU por organización; no admite Worker Services y se reduce a cero tras una hora sin tráfico. | No encaja con el despliegue actual de API más workers separados. |
 | Railway Free | USD 1 de crédito mensual; no acredita consumo suficiente para tres procesos continuos. | No prometer operación gratuita permanente; medir consumo y revisar límites primero. |
 
+## Intento de aprovisionamiento
+
+La selección de VM.Standard.A1.Flex llegó a devolver `Out of capacity` en AD-1. El usuario pospuso la creación. No hay VM creada/verificada y el costo del disco no quedó confirmado como cero. No cambiar a recursos de pago para sortear el bloqueo.
+
 ## Siguiente decisión
 
 Si se prioriza costo cero y se aceptan disponibilidad y mantenimiento, comprobar primero una cuenta Oracle Always Free y capacidad para una VM elegible, sin actualizarla a un plan de pago. No hay credenciales de Oracle ni un servidor existente configurado en esta tarea. No se eligió proveedor de forma definitiva.
