@@ -73,3 +73,7 @@ Actualizar este resumen y progress.html con evidencia observada. Mantener separa
 ## Continuación sin servidor Oracle
 
 La creación de A1 en AD-1 devolvió falta de capacidad y el usuario decidió posponerla. No existe despliegue Oracle verificado ni costo cero confirmado. La prueba real de Actions sigue aprobada y permite avanzar sin depender del PC. El siguiente ajuste corrige hilo/vista previa para ordenar por coalesce(sent_at, created_at), con id como desempate y timestamp de vista previa coherente; cubre llegadas tardías, valores nulos y paginación en ambos sentidos. El plan de implementación ya distingue tareas completadas de publicación y transporte Meta pendientes.
+
+## Preparación del transporte sandbox
+
+Diseño y contrato de decisiones en [WHATSAPP_SANDBOX_DESIGN.md](WHATSAPP_SANDBOX_DESIGN.md): claims, resultados inciertos sin reenvío automático, límite de intentos y política de destinatarios/ventana. Funciones puras con pruebas unitarias; no están conectadas al runtime ni a persistencia. Siguen pendientes la migración/claims transaccionales, receipts y adaptador Meta. No se enviaron mensajes reales.
