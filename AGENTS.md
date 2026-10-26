@@ -1,21 +1,19 @@
-# Flujo de trabajo — repositorio WhatsApp SaaS
+# Flujo obligatorio — WhatsApp SaaS
 
-- Antes de modificar Git, crear una rama exclusiva por tarea; nunca hacer push directo a `main`.
-- Publicar cambios mediante Pull Request con pruebas y evidencia; Claude Code actúa como revisor independiente.
-- **Autonomía amplia en este repositorio:** Codex puede diseñar, implementar, refactorizar, corregir, ejecutar pruebas y preparar PRs sin pedir autorización por cada decisión técnica, respetando la intención y criterios acordados.
-- Después de revisión técnica favorable de Claude Code y controles automatizados satisfactorios, se permite fusionar PRs **exclusivamente de este repositorio** a `main` sin aprobación individual del usuario, siempre que sean cambios de desarrollo y no activen sistemas reales ni despliegues productivos. La aprobación no se presume por silencio. Respetar además las protecciones de rama de GitHub.
-- **Solo el usuario autoriza pasar cambios a producción**, habilitar envíos reales o efectuar acciones con impacto real no previamente autorizadas. Fusionar a `main` no implica autorización para desplegar.
-- **Live Manager queda intacto:** no cambiar su repositorio, configuración ni entorno productivo desde este flujo. La tienda La Madeja y sus sistemas productivos también quedan fuera de alcance.
-- Cambios sobre datos alojados o servicios externos requieren evaluar entorno y efecto: pruebas aisladas y recursos de desarrollo autorizados pueden usarse dentro de su alcance; migraciones persistentes, operaciones destructivas, costos nuevos o integraciones reales requieren autorización explícita cuando impliquen impacto real.
-- Si un PR afecta límites externos o hay dudas de negocio, escalar al usuario antes de ejecutar ese cambio; no bloquear por decisiones técnicas rutinarias.
+- Codex desarrolla autónomamente en ramas de trabajo y abre Pull Requests; nunca hace push directo a `main`.
+- Claude Code revisa los PR, solicita correcciones cuando corresponda y, si aprueba la revisión y pasan los controles aplicables, **Claude Code realiza el merge a `main`** del repositorio WhatsApp SaaS. No requiere autorización individual del usuario.
+- La revisión debe quedar registrada; una solicitud de revisión o el silencio no constituyen aprobación.
+- Codex puede planificar, implementar, refactorizar, probar y corregir dentro del alcance del SaaS sin pedir autorización por cada decisión técnica.
+- **Live Manager está fuera de alcance:** no modificar su repositorio ni su entorno. En Live Manager, solo el usuario autoriza el merge a `main`, que constituye el paso a producción en ese proyecto.
+- Mantener separados los entornos y datos: no afectar La Madeja, Live Manager ni servicios/clientes reales mediante pruebas del SaaS. Cualquier operación con impacto externo real o fuera del alcance acordado requiere decisión explícita antes de ejecutarse.
+- No introducir una autorización humana adicional para el merge a `main` de WhatsApp SaaS. Las protecciones técnicas que existan en GitHub deben respetarse, pero no se presupone que estén configuradas.
 
-# Trazabilidad de funcionalidades
+# Trazabilidad funcional
 
-- Seguir `PLAYBOOK.md` para funcionalidades y cambios de negocio; crear o actualizar `docs/features/<slug>.md` desde su plantilla.
-- Registrar intención original, criterios de aceptación, supuestos, decisiones pendientes y evidencias.
-- Solicitar y registrar revisión del plan por Claude Code antes de cambios funcionales sustanciales. Para correcciones técnicas menores, refactorizaciones seguras o documentación, usar revisión de PR sin puerta de plan separada.
-- Vincular documento, revisión y matriz criterio→prueba en PRs aplicables. No inventar decisiones de negocio ni resultados de pruebas.
-- Si Claude Code no está disponible, dejar el PR abierto y documentar el bloqueo; no fingir aprobación.
+- Para funcionalidades sustanciales, seguir `PLAYBOOK.md` y registrar la intención de negocio en `docs/features/<slug>.md`.
+- Claude Code revisa el plan funcional antes de la implementación sustancial y después revisa el PR. Para correcciones técnicas menores, refactorizaciones seguras y documentación, basta revisión de PR.
+- Vincular criterios de aceptación con pruebas y resultados reales. Registrar observaciones y correcciones. No inventar decisiones de negocio ni evidencias.
+- No aplicar retroactivamente las plantillas a PRs antiguos.
 
 # graphify
 
