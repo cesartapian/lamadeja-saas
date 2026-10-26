@@ -9,5 +9,6 @@ await runWorker({
   processNext: () => processNext(pool, {
     maxAttempts: config.WORKER_MAX_ATTEMPTS, retrySeconds: config.WORKER_RETRY_SECONDS, timeoutMs: config.WORKER_TIMEOUT_MS,
     scope: { organizationId: config.MVP_ORGANIZATION_ID, storeId: config.MVP_STORE_ID },
+    nadiaEnabled: config.NADIA_MODE === 'simulated' && config.OUTBOX_MODE === 'simulated',
   }),
 });

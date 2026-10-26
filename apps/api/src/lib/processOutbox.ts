@@ -16,6 +16,13 @@ export async function processNextOutbox(database: Pool, options: WorkerOptions, 
     const { rows } = await client.query(`select * from message_outbox where ($1::uuid is null or (organization_id=$1 and store_id=$2)) and provider='simulated' and status in ('pending','retrying') and attempt_count < max_attempts and next_attempt_at <= now() order by next_attempt_at,created_at,id for update skip locked limit 1`, [options.scope?.organizationId ?? null, options.scope?.storeId ?? null]);
     const job = rows[0];
     if (!job) { await client.query('commit'); return false; }
+    if (job.origin === 'nadia') {
+      const policy = (await client.query(`select enabled from nadia_conversations where organization_id=$1 and store_id=$2 and conversation_id=$3`, [job.organization_id, job.store_id, job.conversation_id])).rows[0];
+      if (!policy?.enabled) {
+        await client.query("update message_outbox set status='cancelled',last_error='nadia_paused',updated_at=now() where id=$1", [job.id]);
+        await client.query('commit'); return true;
+      }
+    }
     await client.query(`update message_outbox set status='processing',attempt_count=attempt_count+1,updated_at=now() where id=$1`, [job.id]);
     await client.query('savepoint simulation_work');
     let timer: ReturnType<typeof setTimeout> | undefined;

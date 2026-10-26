@@ -42,3 +42,7 @@ Before the pending real Meta sender: review durable claims, ambiguous-result rec
 ## Milestone 4 — SaaS expansion
 - [ ] Organization membership, granular permissions, billing, usage limits
 - [ ] Channel-specific integrations beyond WhatsApp
+
+## Nadia MVP (PR #28)
+
+Pausa confirmada solo por conversación. Se implementan trabajos por mensaje, control de inferencia y outbox simulada con origen IA; sin WhatsApp real. Consultar [especificación y evidencia](features/NADIA-MVP.md). 007 aplicada y verificada en desarrollo. El usuario dispensó la prueba NVIDIA real (no ejecutada); la publicación de credenciales y activación del runtime siguen separadas; Live Manager y despliegue permanecen separados.

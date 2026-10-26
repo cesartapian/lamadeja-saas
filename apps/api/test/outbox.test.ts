@@ -16,7 +16,7 @@ const user = '00000000-0000-4000-8000-000000000003';
 const options = { maxAttempts: 2, retrySeconds: 1, timeoutMs: 15000 };
 async function fixture() {
   const db = new PGlite();
-  for (const migration of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql']) {
+  for (const migration of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql']) {
     const sql = await readFile(new URL(`../../../packages/database/migrations/${migration}`, import.meta.url), 'utf8');
     await db.exec(sql.replace('create extension if not exists pgcrypto;', ''));
   }
@@ -61,7 +61,7 @@ test('outbox HTTP: membership, tenant isolation, input limits, opt-in and idempo
     assert.equal(identityLookups - lookupsBefore, 1, 'existing inbox routes authenticate once');
     assert.equal((await fetch(root + '/api' + path)).status, 401);
     assert.equal((await fetch(root + '/api/outbox/capabilities', { headers })).status, 200);
-    assert.deepEqual(await (await fetch(root + '/disabled/outbox/capabilities', { headers })).json(), { mode: 'disabled' });
+    assert.deepEqual(await (await fetch(root + '/disabled/outbox/capabilities', { headers })).json(), { mode: 'disabled', nadia: false });
     assert.equal((await post({ body: 'Hello', idempotencyKey: key }, '/disabled')).status, 503);
     for (const body of ['', '  ', 'x'.repeat(4097)]) assert.equal((await post({ body, idempotencyKey: key })).status, 400);
     assert.equal((await post({ body: 'Reply', idempotencyKey: 'bad' })).status, 400);

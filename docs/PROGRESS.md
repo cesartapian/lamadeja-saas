@@ -97,3 +97,11 @@ El 26 de octubre, por autorización explícita del usuario, se aplicó únicamen
 ## Receipts integrados y siguiente incremento
 
 PR #21 aprobado por Claude tras corregir concurrencia por mensaje y tolerancia a statuses no soportados. 006 aplicada y verificada en desarrollo. Ejecución real [40320701757](https://github.com/cesartapian/lamadeja-saas/actions/runs/40320701757) aprobada con 33 comprobaciones, limpieza completa y cero envíos reales. El adaptador sandbox se prepara en la siguiente rama: no está montado ni tiene credenciales/configuración activa; pruebas con transporte inyectado.
+
+## Nadia — PR #28 en curso
+
+Persistencia idempotente, pausa solo por conversación (decisión del usuario), worker de inferencia con cuota acotada y salida exclusivamente simulada; UI identifica respuestas Nadia/IA y conserva sesión si un operador pierde permisos de pausa. 007 preparada sin aplicar remotamente. Validación real NIM bloqueada por credencial segura/modelo gratuito pendiente de verificar; no se modifican Live Manager, Oracle ni Vercel. No se afirma que las pruebas con dobles de inferencia sean evidencia de NVIDIA real.
+
+## Nadia: 007 aplicada y dispensa de prueba real
+
+Por instrucción explícita del usuario se omitió la prueba NVIDIA real y se aplicó solo 007 en Supabase de desarrollo. Verificadas las tres tablas con RLS sin políticas de navegador, índices de claims/historial, FK de origen y atribución por conversación. Los conteos y el contenido/estado anterior de la outbox se preservaron: no se crearon jobs ni salidas Nadia. El PR #28 pasa a revisión de Claude; runtime disabled, modelo/cuota/semántica real no validados, cero llamadas NIM/Meta.

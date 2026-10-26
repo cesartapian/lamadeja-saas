@@ -3,11 +3,11 @@ import type { Pool } from 'pg';
 import { z } from 'zod';
 
 const submission = z.object({ body: z.string().trim().min(1).max(4096), idempotencyKey: z.string().uuid() }).strict();
-const columns = 'id,conversation_id,body,status,attempt_count,max_attempts,created_at,updated_at,completed_at';
-export function outboxRouter(database: Pool, auth: RequestHandler, options: { enabled: boolean; maxAttempts: number }) {
+const columns = 'id,conversation_id,body,status,attempt_count,max_attempts,created_at,updated_at,completed_at,origin';
+export function outboxRouter(database: Pool, auth: RequestHandler, options: { enabled: boolean; maxAttempts: number; nadiaEnabled?: boolean }) {
   const router = Router();
   router.use(['/outbox/capabilities', '/conversations/:id/outbox'], auth);
-  router.get('/outbox/capabilities', (_req, res) => res.json({ mode: options.enabled ? 'simulated' : 'disabled' }));
+  router.get('/outbox/capabilities', (_req, res) => res.json({ mode: options.enabled ? 'simulated' : 'disabled', nadia: options.nadiaEnabled ?? false }));
   router.get('/conversations/:id/outbox', async (req, res, next) => {
     const id = z.string().uuid().safeParse(req.params.id);
     const offset = z.coerce.number().int().min(0).max(100000).safeParse(req.query.offset ?? 0);

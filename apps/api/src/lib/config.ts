@@ -6,6 +6,11 @@ const schema = z.object({
   WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(5000),
   OUTBOX_MODE: z.enum(['disabled', 'simulated']).default('disabled'),
+  NADIA_MODE: z.enum(['disabled', 'simulated']).default('disabled'),
+  NVIDIA_API_KEY: z.preprocess(value => value === '' ? undefined : value, z.string().min(1).optional()),
+  NADIA_MODEL: z.preprocess(value => value === '' ? undefined : value, z.string().min(1).max(200).optional()),
+  NADIA_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(12000),
+  NADIA_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).max(3600000).default(2000),
   DATABASE_URL: z.string().min(1).optional(),
   WORKER_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(100).default(5),
   WORKER_RETRY_SECONDS: z.coerce.number().int().min(1).max(3600).default(30),
@@ -20,6 +25,10 @@ const schema = z.object({
   META_VERIFY_TOKEN: z.string().min(1),
   MVP_ORGANIZATION_ID: z.string().uuid(),
   MVP_STORE_ID: z.string().uuid(),
+}).superRefine((value, context) => {
+  if (value.NADIA_MODE === 'simulated' && (value.OUTBOX_MODE !== 'simulated' || !value.NVIDIA_API_KEY || !value.NADIA_MODEL)) {
+    context.addIssue({ code: 'custom', path: ['NADIA_MODE'], message: 'Nadia simulation requires NVIDIA configuration and simulated outbox' });
+  }
 });
 export const config = schema.parse(process.env);
 export const allowedEmails = new Set(config.ALLOWED_EMAILS.split(',').map(x => x.trim().toLowerCase()).filter(Boolean));
