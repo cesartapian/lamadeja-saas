@@ -37,6 +37,13 @@ try {
   phase = 'real_supabase_auth';
   auth = createClient(config.authUrl, config.publicKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, global: { fetch: safeFetch } });
   const login = await auth.auth.signInWithPassword({ email: config.email, password: config.password });
+  if (login.error) {
+    const knownCodes = ['invalid_credentials', 'email_not_confirmed', 'email_provider_disabled', 'user_banned', 'over_request_rate_limit', 'over_email_send_rate_limit', 'unexpected_failure', 'bad_jwt', 'user_not_found'];
+    const code = knownCodes.includes(login.error.code) ? login.error.code : 'unclassified_auth_error';
+    const status = Number.isInteger(login.error.status) ? login.error.status : 'unavailable';
+    console.error(`Supabase Auth rejected test sign-in: code=${code}; status=${status}`);
+    checks.push(`auth_error_${code}`);
+  }
   const session = login.data.session, user = login.data.user;
   check(!login.error && Boolean(session && user?.email), 'real_test_account_authenticated');
   // Only use the identity actually returned by Auth; never forge user claims.
