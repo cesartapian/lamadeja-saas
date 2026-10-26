@@ -3,38 +3,37 @@ Estado: BORRADOR
 Issue / PR: <enlaces>
 
 ## Idea original del usuario
-<resumen fiel y propósito de negocio>
+<resumen fiel>
 
 ## Resultado esperado y alcance
 Incluye:
 No incluye:
 
 ## Reglas de negocio y criterios de aceptación
-- [ ] CA-01: <escenario observable>
-- [ ] CA-02: <escenario observable>
+- [ ] CA-01: <escenario verificable>
+- [ ] CA-02: <escenario verificable>
 
-## Escenarios límite y seguridad
-<aislamiento multi-tenant, permisos, errores e idempotencia cuando aplique>
+## Casos límite
+<errores, permisos, aislamiento multi-tenant, etc.>
 
-## Decisiones
-Puede decidir Codex autónomamente: <diseño, pruebas, refactorizaciones dentro de alcance>
-PENDIENTE DE USUARIO: <reglas de negocio, costos o acciones con impacto real>
-Límites: Live Manager y La Madeja productivos intactos; producción solo con autorización del usuario.
+## Decisiones y autonomía
+Codex decide: <detalles técnicos dentro del alcance>
+PENDIENTE DE USUARIO: <regla de negocio no definida>
+Live Manager y La Madeja operativa: fuera de alcance.
 
-## Plan técnico y reversión
-<componentes, fases, migraciones, pruebas, riesgos>
+## Plan, pruebas y reversión
+<componentes, riesgos, pruebas>
 
 ## Revisión del plan por Claude Code
-Requerida para funcionalidad sustancial: SÍ / NO (justificación)
 Estado: PENDIENTE
-Enlace verificable:
+Enlace:
 
-## Evidencia de aceptación
-| Criterio | Prueba/evidencia | Resultado | Referencia |
-| --- | --- | --- | --- |
-| CA-01 | | PENDIENTE | |
+## Evidencia
+| Criterio | Prueba | Resultado |
+| --- | --- | --- |
+| CA-01 | | PENDIENTE |
 
-## Revisión final
-Claude Code: PENDIENTE
-Merge a main SaaS: tras aprobación técnica y checks; sin aprobación individual del usuario si no hay impacto real.
-Despliegue a producción: requiere autorización explícita del usuario.
+## Revisión final y merge
+Revisión Claude Code: PENDIENTE
+Merge a main de WhatsApp SaaS: lo realiza Claude Code tras aprobar y pasar los checks, sin aprobación individual del usuario.
+Live Manager: solo el usuario autoriza integración a main; este documento no cambia ese repositorio.
