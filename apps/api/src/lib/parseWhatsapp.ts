@@ -19,9 +19,11 @@ export function parseWhatsapp(payload: unknown): { messages: IncomingText[]; rec
     if (Array.isArray(value.statuses)) {
       const metadata = z.object({ phone_number_id: z.string().min(1) }).parse(value.metadata);
       for (const raw of value.statuses) {
-        const status = receipt.parse(raw);
+        const parsedStatus = receipt.safeParse(raw);
+        if (!parsedStatus.success) { notes.push('unsupported or invalid status notification'); continue; }
+        const status = parsedStatus.data;
         const occurredAt = new Date(Number(status.timestamp) * 1000);
-        if (!Number.isFinite(occurredAt.getTime())) throw new Error('Invalid receipt timestamp');
+        if (!Number.isFinite(occurredAt.getTime())) { notes.push('invalid receipt timestamp'); continue; }
         receipts.push({ providerMessageId: status.id, recipient: '+' + status.recipient_id, status: status.status,
           occurredAt, errorCode: status.status === 'failed' ? status.errors?.[0]?.code ?? null : null, phoneId: metadata.phone_number_id });
       }

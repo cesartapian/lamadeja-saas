@@ -225,11 +225,20 @@ test('signed receipts deduplicate, preserve delivery progress and reconcile call
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await f.db.close(); }
 });
 
-test('receipt parser rejects unknown states and malformed timestamps or recipients', () => {
+test('unsupported receipt entries do not discard valid statuses or messages in the same batch', () => {
   const status = { id: 'wamid.test', status: 'delivered', timestamp: '1700000000', recipient_id: '56912345678' };
   const wrap = (s: unknown) => ({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: { metadata: { phone_number_id: 'phone' }, statuses: [s] } }] }] });
   assert.equal(parseWhatsapp(wrap(status)).receipts[0].recipient, '+56912345678');
-  for (const change of [{ status: 'unknown' }, { timestamp: '-1' }, { recipient_id: '+56912345678' }, { id: '' }]) assert.throws(() => parseWhatsapp(wrap({ ...status, ...change })));
+  for (const change of [{ status: 'deleted' }, { timestamp: '-1' }, { recipient_id: '+56912345678' }, { id: '' }]) {
+    const result = parseWhatsapp(wrap({ ...status, ...change }));
+    assert.equal(result.receipts.length, 0); assert.equal(result.notes[0], 'unsupported or invalid status notification');
+  }
+  const mixed = payload();
+  const value = mixed.entry[0].changes[0].value as typeof mixed.entry[0]['changes'][0]['value'] & { statuses: unknown[] };
+  value.statuses = [{ ...status, status: 'deleted' }, status];
+  const result = parseWhatsapp(mixed);
+  assert.equal(result.messages.length, 1); assert.equal(result.receipts.length, 1); assert.equal(result.notes.length, 1);
+  assert.throws(() => parseWhatsapp({ object: 'wrong', entry: [] }));
 });
 
 test('persistence failure rolls business writes back; retries recover and stop at configured limit', async () => {
