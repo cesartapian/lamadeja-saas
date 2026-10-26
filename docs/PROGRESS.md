@@ -77,3 +77,11 @@ La creación de A1 en AD-1 devolvió falta de capacidad y el usuario decidió po
 ## Preparación del transporte sandbox
 
 Diseño y contrato de decisiones en [WHATSAPP_SANDBOX_DESIGN.md](WHATSAPP_SANDBOX_DESIGN.md): claims, resultados inciertos sin reenvío automático, límite de intentos y política de destinatarios/ventana. Funciones puras con pruebas unitarias; no están conectadas al runtime ni a persistencia. Siguen pendientes la migración/claims transaccionales, receipts y adaptador Meta. No se enviaron mensajes reales.
+
+## Persistencia sandbox preparada
+
+Migración 005 y repositorio transaccional independientes de la outbox simulada: idempotencia, claims con SKIP LOCKED, tokens nuevos, control de versión, reloj de PostgreSQL y recuperación por ámbito. Pruebas con conexiones independientes verifican concurrencia, aislamiento, reintentos limitados y fallo de persistencia después de aceptación. Los estados inciertos no vuelven a cola. La migración solo se ejecutó en base desechable; Supabase y el smoke real actual siguen con 001–004. Sin API/worker sandbox, scheduler, adaptador Meta ni envíos reales.
+
+Validación del incremento de persistencia: suite completa con PostgreSQL 16 desechable, 36 pruebas aprobadas (6 scripts y 30 API, incluidos subcasos), ninguna omitida; tablero en escritorio/móvil aprobado, tipos y lint correctos. No se presenta como migración aplicada ni como prueba Meta real.
+
+Tras la revisión de Claude se añadió comprobación transaccional de membresía al encolar y manejo del evento de error de la conexión activa; si falla la conexión/rollback, se descarta del pool. La prueba termina deliberadamente un backend PostgreSQL y confirma rollback, recuperación del pool e idempotencia al repetir la solicitud.
