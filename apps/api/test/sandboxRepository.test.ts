@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
 import { sandboxRepository, type SandboxScope, type StoredSandboxJob } from '../src/lib/sandboxRepository.js';
+import { persistSandboxReceipt } from '../src/lib/sandboxReceipts.js';
+import { setTimeout as delay } from 'node:timers/promises';
 
 test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve ambiguous sends', { skip: !process.env.TEST_DATABASE_URL, timeout: 60000 }, async t => {
   const schema = `sandbox_${randomUUID().replaceAll('-', '')}`;
@@ -33,7 +35,7 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
   const expire = (id: string) => pool.query("update sandbox_dispatch set lease_until=clock_timestamp()-interval '1 second' where id=$1", [id]);
   try {
     await admin.query(`create schema ${schema}`);
-    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql']) {
+    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql']) {
       await pool.query(await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8'));
     }
     await t.test('enqueue is idempotent across connections and rejects cross-scope/channel data', async () => {
@@ -111,6 +113,49 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
       assert.equal(accepted?.state, 'accepted'); assert.equal(accepted?.providerMessageId, 'wamid.synthetic');
       assert.equal(await f.repo.complete(ref(started), { kind: 'unknown' }), null);
       assert.equal(await f.repo.claim(), null);
+    });
+    await t.test('concurrent delivery receipts converge without duplicates or cross-channel updates', async () => {
+      const f = await seed(), input = f.input(), messageId = 'wamid.concurrent-receipt';
+      const queued = await f.repo.enqueue(input);
+      const started = await f.repo.begin(ref(await f.repo.claim())); assert(started);
+      await f.repo.complete(ref(started), { kind: 'accepted', providerMessageId: messageId });
+      const channel = (await pool.query('select external_account_id from channel_connections where id=$1', [f.scope.channelId])).rows[0].external_account_id;
+      const receiptPids: number[] = [];
+      async function receipt(status: 'read' | 'delivered', db: Pool) {
+        const client = await db.connect();
+        try {
+          receiptPids.push((await client.query('select pg_backend_pid() as pid')).rows[0].pid);
+          await client.query('begin');
+          await persistSandboxReceipt(client, f.scope.organizationId, f.scope.storeId, { providerMessageId: messageId, recipient: input.recipient,
+            status, occurredAt: new Date('2026-01-01T00:00:00Z'), errorCode: null, phoneId: channel });
+          await client.query('commit');
+        } catch (error) { await client.query('rollback'); throw error; }
+        finally { client.release(); }
+      }
+      const blocker = await pool.connect();
+      await blocker.query('begin');
+      await blocker.query('select id from sandbox_dispatch where id=$1 for update', [queued.job.id]);
+      const competing = Promise.all([receipt('delivered', pool), receipt('read', secondPool)]);
+      try {
+        const deadline = Date.now() + 5000;
+        let waiting = 0;
+        while (Date.now() < deadline) {
+          waiting = (await admin.query("select count(*)::int as count from pg_stat_activity where pid=any($1::int[]) and wait_event_type='Lock'", [receiptPids])).rows[0].count;
+          if (waiting === 2) break;
+          await delay(10);
+        }
+        assert.equal(waiting, 2, 'both receipt transactions must wait rather than skip the message lock');
+      } finally { await blocker.query('rollback'); blocker.release(); await competing; }
+      assert.equal((await pool.query('select delivery_status from sandbox_dispatch where id=$1', [queued.job.id])).rows[0].delivery_status, 'read');
+      await Promise.all([receipt('read', pool), receipt('read', secondPool)]);
+      assert.equal((await pool.query('select delivery_status from sandbox_dispatch where id=$1', [queued.job.id])).rows[0].delivery_status, 'read');
+      assert.equal((await pool.query('select count(*)::int as count from sandbox_receipts where provider_message_id=$1', [messageId])).rows[0].count, 2);
+      const foreign = await seed();
+      const foreignQueued = await foreign.repo.enqueue(foreign.input());
+      const foreignStarted = await foreign.repo.begin(ref(await foreign.repo.claim())); assert(foreignStarted);
+      await foreign.repo.complete(ref(foreignStarted), { kind: 'accepted', providerMessageId: messageId });
+      assert.equal(await foreign.repo.reconcileReceipts(), 0);
+      assert.equal((await pool.query('select delivery_status from sandbox_dispatch where id=$1', [foreignQueued.job.id])).rows[0].delivery_status, null);
     });
     await t.test('connection loss rolls back enqueue and the pool can retry the same key safely', async () => {
       const f = await seed(), input = { ...f.input(), body: 'Disconnect fixture' };

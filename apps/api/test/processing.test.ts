@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createHmac } from 'node:crypto';
-import { once } from 'node:events';
+import { createHmac, randomUUID } from 'node:crypto';
+import { once, EventEmitter } from 'node:events';
 import express from 'express';
 import type { Pool } from 'pg';
 import { PGlite } from '@electric-sql/pglite';
@@ -12,6 +12,7 @@ import { webhookSaver } from '../src/lib/saveWebhook.js';
 import { webhookRouter } from '../src/routes/webhookRouter.js';
 import { conversationRouter } from '../src/routes/conversations.js';
 import { authentication } from '../src/middleware/authorization.js';
+import { sandboxRepository } from '../src/lib/sandboxRepository.js';
 
 const org = '00000000-0000-4000-8000-000000000001';
 const store = '00000000-0000-4000-8000-000000000002';
@@ -27,16 +28,16 @@ function payload(id = 'wamid.synthetic') {
 }
 async function fixture() {
   const db = new PGlite();
-  for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql']) {
+  for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql']) {
     const sql = await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8');
     // pgcrypto extension is unavailable in WASM; gen_random_uuid is built into PostgreSQL.
     await db.exec(sql.replace('create extension if not exists pgcrypto;', ''));
   }
   const query = async (sql: string, params?: unknown[]) => {
-    const r = await db.query(sql, params);
+    const r = await db.query<Record<string, unknown>>(sql, params);
     return { ...r, rowCount: r.affectedRows || r.rows.length };
   };
-  const client = { query, release() {} };
+  const client = Object.assign(new EventEmitter(), { query, release() {} });
   const pool = { query, connect: async () => client } as unknown as Pool;
   await query('insert into organizations(id,name) values($1,\'A\'),($2,\'B\')', [org, other]);
   await query('insert into stores(id,organization_id,name) values($1,$2,\'A\'),($3,$4,\'B\')', [store, org, otherStore, other]);
@@ -164,6 +165,80 @@ test('message history and latest preview use effective timestamps with stable ID
     if (server) { server.closeAllConnections(); await new Promise<void>(resolve => server!.close(() => resolve())); }
     await f.db.close();
   }
+});
+
+test('signed receipts deduplicate, preserve delivery progress and reconcile callbacks preceding acknowledgement', async () => {
+  const f = await fixture();
+  const app = express();
+  app.use(express.raw({ type: 'application/json' }), webhookRouter('receipt-secret', 'verify', f.save));
+  const server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const address = server.address(); assert(address && typeof address !== 'string');
+  const event = (id: string, status: string, timestamp: string, recipient = '56912345678', phone = 'synthetic-phone') => ({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: {
+    metadata: { phone_number_id: phone }, statuses: [{ id, status, timestamp, recipient_id: recipient, errors: [{ code: 131026, message: 'Never persist raw provider details' }] }],
+  } }] }] });
+  const deliver = async (body: ReturnType<typeof event>, signed = true) => {
+    const raw = JSON.stringify(body);
+    const response = await fetch(`http://127.0.0.1:${address.port}`, { method: 'POST', body: raw, headers: {
+      'Content-Type': 'application/json', 'x-hub-signature-256': signed ? 'sha256=' + createHmac('sha256', 'receipt-secret').update(raw).digest('hex') : 'sha256=bad',
+    } });
+    assert.equal(response.status, signed ? 200 : 401);
+    if (signed) await processNext(f.pool, options);
+  };
+  try {
+    await f.enqueue(); await processNext(f.pool, options);
+    const conversation = (await f.query('select id,channel_connection_id from conversations')).rows[0] as { id: string; channel_connection_id: string };
+    const repo = sandboxRepository(f.pool, { organizationId: org, storeId: store, channelId: conversation.channel_connection_id });
+    async function queue() {
+      return repo.enqueue({ conversationId: conversation.id, requestedBy: user, idempotencyKey: randomUUID(), recipient: '+56912345678', body: 'Synthetic receipt target' });
+    }
+    async function accept(providerMessageId: string) {
+      const claim = await repo.claim(); assert(claim?.claimToken);
+      const started = await repo.begin({ id: claim.id, version: claim.version, claimToken: claim.claimToken }); assert(started?.claimToken);
+      return repo.complete({ id: started.id, version: started.version, claimToken: started.claimToken }, { kind: 'accepted', providerMessageId });
+    }
+    const first = await queue(); await accept('wamid.receipt-test');
+    await deliver(event('wamid.receipt-test', 'read', '1700000030'), false);
+    assert.equal((await f.query('select * from sandbox_receipts')).rows.length, 0);
+    await deliver(event('wamid.receipt-test', 'read', '1700000030', '56999999999'));
+    assert.equal((await f.query('select delivery_status from sandbox_dispatch where id=$1', [first.job.id])).rows[0].delivery_status, null);
+    for (const [status, timestamp] of [['read', '1700000030'], ['delivered', '1700000020'], ['sent', '1700000010'], ['failed', '1700000040']]) {
+      await deliver(event('wamid.receipt-test', status, timestamp));
+    }
+    const duplicate = event('wamid.receipt-test', 'read', '1700000030');
+    await deliver(duplicate);
+    await deliver({ ...duplicate, extra_delivery_marker: true } as ReturnType<typeof event>);
+    const row = (await f.query('select state,delivery_status,delivery_error_code from sandbox_dispatch where id=$1', [first.job.id])).rows[0];
+    assert.deepEqual(row, { state: 'accepted', delivery_status: 'read', delivery_error_code: null });
+    assert.equal((await f.query('select * from sandbox_receipts')).rows.length, 5); // Four states plus unmatched recipient.
+    assert.equal((await f.query("select error_code from sandbox_receipts where status='failed'")).rows[0].error_code, 131026);
+    const early = await queue();
+    await deliver(event('wamid.early-receipt', 'delivered', '1700000050'));
+    assert.equal((await f.query('select delivery_status from sandbox_dispatch where id=$1', [early.job.id])).rows[0].delivery_status, null);
+    await accept('wamid.early-receipt');
+    assert.equal(await repo.reconcileReceipts(1), 1); // Already reconciled rows cannot starve this batch.
+    assert.equal(await repo.reconcileReceipts(1), 0);
+    assert.equal((await f.query('select delivery_status from sandbox_dispatch where id=$1', [early.job.id])).rows[0].delivery_status, 'delivered');
+    await deliver(event('wamid.foreign', 'delivered', '1700000060', '56912345678', 'unregistered-phone'));
+    assert.equal((await f.query("select last_error from webhook_inbox where status='failed'")).rows[0].last_error, 'unregistered_channel');
+    assert.equal((await f.query("select * from sandbox_receipts where provider_message_id='wamid.foreign'")).rows.length, 0);
+    assert.equal((await f.query("select * from messages where direction='out'")).rows.length, 0);
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await f.db.close(); }
+});
+
+test('unsupported receipt entries do not discard valid statuses or messages in the same batch', () => {
+  const status = { id: 'wamid.test', status: 'delivered', timestamp: '1700000000', recipient_id: '56912345678' };
+  const wrap = (s: unknown) => ({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: { metadata: { phone_number_id: 'phone' }, statuses: [s] } }] }] });
+  assert.equal(parseWhatsapp(wrap(status)).receipts[0].recipient, '+56912345678');
+  for (const change of [{ status: 'deleted' }, { timestamp: '-1' }, { recipient_id: '+56912345678' }, { id: '' }]) {
+    const result = parseWhatsapp(wrap({ ...status, ...change }));
+    assert.equal(result.receipts.length, 0); assert.equal(result.notes[0], 'unsupported or invalid status notification');
+  }
+  const mixed = payload();
+  const value = mixed.entry[0].changes[0].value as typeof mixed.entry[0]['changes'][0]['value'] & { statuses: unknown[] };
+  value.statuses = [{ ...status, status: 'deleted' }, status];
+  const result = parseWhatsapp(mixed);
+  assert.equal(result.messages.length, 1); assert.equal(result.receipts.length, 1); assert.equal(result.notes.length, 1);
+  assert.throws(() => parseWhatsapp({ object: 'wrong', entry: [] }));
 });
 
 test('persistence failure rolls business writes back; retries recover and stop at configured limit', async () => {

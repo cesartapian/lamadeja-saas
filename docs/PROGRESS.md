@@ -89,3 +89,7 @@ Tras la revisión de Claude se añadió comprobación transaccional de membresí
 ## Migración 005 aplicada en desarrollo
 
 El 26 de octubre, por autorización explícita del usuario, se aplicó únicamente 005 del PR #18 ya integrado. Preflight confirmó ausencia de tabla/constraint; transacción DDL con límites de espera; verificación posterior confirmó cola vacía, RLS, cero políticas de navegador, restricciones e índices. Los conteos de usuarios, membresías, tiendas, conversaciones y mensajes permanecieron iguales. No se repitió ninguna migración anterior. El workflow real se amplía para probar el repositorio compilado en el tenant temporal y borrar sandbox_dispatch durante la limpieza. La ejecución ampliada [40270492905](https://github.com/cesartapian/lamadeja-saas/actions/runs/40270492905) pasó: 28 comprobaciones y fixture_cleanup_complete=true. Sin transporte ni entrega Meta real.
+
+## Confirmaciones de entrega en desarrollo
+
+006 y worker entrante: confirma firma, persiste/deduplica statuses, aísla por canal/tenant/destinatario y mantiene una proyección sin retrocesos (read > delivered > failed > sent), separada del estado accepted. Conserva receipts anticipados y permite conciliarlos por lotes sin bloquearse con filas ya consistentes. Pendiente revisión/merge, aplicación de 006 y prueba remota ampliada. Sin transporte Meta ni scheduler de envío.

@@ -55,6 +55,9 @@ try {
     to_regclass('public.sandbox_dispatch_expired') is not null as expired,
     to_regclass('public.sandbox_provider_message_unique') is not null as provider_unique`)).rows[0];
   check(sandboxSchema.present && sandboxSchema.rls && sandboxSchema.due && sandboxSchema.expired && sandboxSchema.provider_unique, 'development_sandbox_005_schema_present');
+  const receiptSchema = (await database.query(`select to_regclass('public.sandbox_receipts') is not null as present,
+    coalesce((select relrowsecurity from pg_class where oid=to_regclass('public.sandbox_receipts')),false) as rls`)).rows[0];
+  check(receiptSchema.present && receiptSchema.rls, 'development_receipts_006_schema_present');
   directory = await mkdtemp(join(tmpdir(), 'lamadeja-real-staging-'));
   const apiPort = Number(process.env.STAGING_API_PORT || 4000), webPort = Number(process.env.STAGING_WEB_PORT || 5173);
   check(Number.isInteger(apiPort) && apiPort > 0 && apiPort <= 65535 && Number.isInteger(webPort) && webPort > 0 && webPort <= 65535, 'valid_fixture_ports');
@@ -138,6 +141,22 @@ try {
   const sandboxAcceptedStart = await sandbox.begin(claimRef(await sandbox.claim()));
   const sandboxAccepted = await sandbox.complete(claimRef(sandboxAcceptedStart), { kind: 'accepted', providerMessageId: `wamid.staging-${runId}` });
   check(sandboxAccepted?.state === 'accepted' && await sandbox.claim() === null, 'sandbox_005_synthetic_acceptance_persisted');
+  phase = 'signed_delivery_receipts';
+  const receiptEvent = JSON.stringify({ object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages', value: {
+    metadata: { phone_number_id: phoneId }, statuses: ['read', 'delivered', 'sent', 'failed'].map(status => ({
+      id: sandboxAccepted.providerMessageId, recipient_id: sandboxInput.recipient.slice(1), status,
+      timestamp: String(Math.floor(Date.now() / 1000)), ...(status === 'failed' ? { errors: [{ code: 131026 }] } : {}),
+    })),
+  } }] }] });
+  const receiptSend = () => safeFetch(apiUrl + '/webhooks/whatsapp', { method: 'POST', headers: {
+    'Content-Type': 'application/json', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', metaSecret).update(receiptEvent).digest('hex'),
+  }, body: receiptEvent });
+  check((await receiptSend()).status === 200, 'signed_delivery_receipts_accepted');
+  const receiptDuplicate = await receiptSend();
+  check(receiptDuplicate.status === 200 && (await receiptDuplicate.json()).status === 'duplicate', 'delivery_receipt_redelivery_deduplicated');
+  await until(async () => (await database.query('select delivery_status from sandbox_dispatch where id=$1 and organization_id=$2', [sandboxAccepted.id, organizationId])).rows[0]?.delivery_status === 'read');
+  check(Number((await database.query('select count(*) from sandbox_receipts where organization_id=$1', [organizationId])).rows[0].count) === 4, 'delivery_receipts_durable_and_monotonic');
+  check(await sandbox.reconcileReceipts() === 0, 'delivery_reconciliation_idempotent');
   phase = 'simulated_outbox';
   const submission = { body: `Remote reply ${runId}`, idempotencyKey: randomUUID() };
   const created = await request(`/api/conversations/${conversation.id}/outbox`, submission);
@@ -181,7 +200,7 @@ try {
         await client.query('begin');
         const owned = await client.query('select id from organizations where id=$1 and name=$2 for update', [organizationId, marker]);
         if (owned.rowCount !== 1) throw new Error('Fixture ownership mismatch');
-        for (const table of ['sandbox_dispatch', 'message_outbox', 'webhook_inbox', 'messages', 'conversations', 'contacts', 'channel_connections', 'organization_members', 'stores']) {
+        for (const table of ['sandbox_receipts', 'sandbox_dispatch', 'message_outbox', 'webhook_inbox', 'messages', 'conversations', 'contacts', 'channel_connections', 'organization_members', 'stores']) {
           await client.query(`delete from ${table} where organization_id=$1`, [organizationId]);
         }
         await client.query('delete from organizations where id=$1 and name=$2', [organizationId, marker]);
