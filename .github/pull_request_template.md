@@ -8,9 +8,9 @@ Documento de funcionalidad: `docs/features/<slug>.md`
 Issue relacionado:
 Objetivo original y resultado esperado:
 
-## Revisión previa del plan
+## Revisión previa del plan (solo funcionalidades sustanciales)
 Enlace a revisión de Claude Code:
-Estado: PENDIENTE / APROBADO PARA IMPLEMENTAR / CAMBIOS SOLICITADOS / BLOQUEADO
+Estado: PENDIENTE / APROBADO PARA IMPLEMENTAR / CAMBIOS SOLICITADOS / BLOQUEADO / NO APLICA (justificar)
 Si se cambió alcance, indicar nueva revisión:
 
 ## Cambios y límites
@@ -33,5 +33,6 @@ Enlace y resultado de revisión:
 Observaciones y commits que las resuelven:
 
 ## Autorizaciones
-- [ ] No se fusionó ni desplegó sin autorización explícita del usuario.
-- [ ] No se tocaron sistemas productivos ni se habilitaron envíos reales sin autorización.
+- [ ] Merge a main del SaaS solo tras revisión técnica favorable registrada y checks requeridos; no exige aprobación individual del usuario cuando no hay impacto real.
+- [ ] Despliegue a producción solo con autorización explícita del usuario.
+- [ ] Live Manager y La Madeja productivos intactos; sin envíos reales ni acciones de impacto real no autorizadas.
