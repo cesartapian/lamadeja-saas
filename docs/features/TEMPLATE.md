@@ -1,49 +1,40 @@
 # Funcionalidad: <nombre>
 Estado: BORRADOR
-Responsable de decisión de negocio: usuario
-Issue/PR: <enlaces>
+Issue / PR: <enlaces>
 
 ## Idea original del usuario
-<resumen fiel; citar literalmente fragmentos importantes si existen>
+<resumen fiel y propósito de negocio>
 
-## Problema y resultado esperado
-<quién se beneficia, por qué, resultado observable>
-
-## Alcance
+## Resultado esperado y alcance
 Incluye:
 No incluye:
 
-## Reglas de negocio y restricciones
-- <regla verificable>
-- No afectar La Madeja ni Live Manager productivos sin autorización explícita.
+## Reglas de negocio y criterios de aceptación
+- [ ] CA-01: <escenario observable>
+- [ ] CA-02: <escenario observable>
 
-## Criterios de aceptación
-- [ ] CA-01: <dado/cuando/entonces, observable>
-- [ ] CA-02: <...>
+## Escenarios límite y seguridad
+<aislamiento multi-tenant, permisos, errores e idempotencia cuando aplique>
 
-## Escenarios y casos límite
-<permisos, errores, aislamiento multi-tenant, idempotencia, etc., según aplique>
+## Decisiones
+Puede decidir Codex autónomamente: <diseño, pruebas, refactorizaciones dentro de alcance>
+PENDIENTE DE USUARIO: <reglas de negocio, costos o acciones con impacto real>
+Límites: Live Manager y La Madeja productivos intactos; producción solo con autorización del usuario.
 
-## Supuestos y decisiones pendientes
-- PENDIENTE DE USUARIO: <pregunta y efecto>
+## Plan técnico y reversión
+<componentes, fases, migraciones, pruebas, riesgos>
 
-## Plan técnico propuesto
-<arquitectura, archivos, fases, migraciones, seguridad, reversión>
-
-## Autonomía permitida
-Puede decidir Codex: <decisiones técnicas acotadas>
-Requiere usuario: <alcance, costos, datos reales, producción, reglas de negocio>
-
-## Revisión de plan por Claude Code
-Estado: PENDIENTE DE REVISIÓN
-Enlace a revisión: <PR/comentario>
-Observaciones y resolución: <...>
+## Revisión del plan por Claude Code
+Requerida para funcionalidad sustancial: SÍ / NO (justificación)
+Estado: PENDIENTE
+Enlace verificable:
 
 ## Evidencia de aceptación
-| Criterio | Prueba / evidencia | Resultado | Referencia |
+| Criterio | Prueba/evidencia | Resultado | Referencia |
 | --- | --- | --- | --- |
-| CA-01 | <test o verificación> | PENDIENTE | <enlace> |
+| CA-01 | | PENDIENTE | |
 
-## Aprobación final
-Revisión Claude Code: PENDIENTE
-Autorización usuario para merge/despliegue: NO OTORGADA
+## Revisión final
+Claude Code: PENDIENTE
+Merge a main SaaS: tras aprobación técnica y checks; sin aprobación individual del usuario si no hay impacto real.
+Despliegue a producción: requiere autorización explícita del usuario.
