@@ -1,6 +1,6 @@
 # Nadia — MVP de asistente IA para WhatsApp
 
-Estado: **IMPLEMENTACIÓN EN PR #28 / VALIDACIÓN NVIDIA REAL PENDIENTE**. No habilitar respuestas reales hasta validar integración, credenciales y pruebas.
+Estado: **IMPLEMENTADA EN PR #28 / REVISIÓN DE CLAUDE**. La prueba real NVIDIA fue omitida por instrucción explícita del usuario; no se presenta como aprobada. No habilitar respuestas reales hasta validar integración, credenciales y pruebas.
 
 ## Problema
 La bandeja recibe mensajes de WhatsApp, pero actualmente requiere respuesta manual. Nadia debe responder automáticamente desde el primer mensaje usando IA real.
@@ -54,7 +54,7 @@ La verificación de Vercel detectó `whatsapp-app` como proyecto separado, conec
 
 ## Implementación y operación del PR #28
 
-- Migración 007: configuración por conversación, trabajos idempotentes por mensaje origen y atribución de outbox (`origin=nadia`, sin atribuir la automatización a un usuario humano). RLS sin políticas de navegador. No aplicada a Supabase todavía.
+- Migración 007: configuración por conversación, trabajos idempotentes por mensaje origen y atribución de outbox (`origin=nadia`, sin atribuir la automatización a un usuario humano). RLS sin políticas de navegador. Aplicada y verificada en Supabase de desarrollo por instrucción del usuario; no repetir 007.
 - Ingesta: con NADIA_MODE=simulated y OUTBOX_MODE=simulated, el worker de inbox encola únicamente mensajes entrantes nuevos. Receipts y duplicados no disparan Nadia; al pausar se cancelan trabajos pendientes y simulaciones de IA pendientes, manteniendo las manuales.
 - Worker independiente: npm run worker:nadia. Una inferencia concurrente por tienda, intervalo mínimo configurable (2 s), dos intentos máximos por mensaje y retry de 30 s para timeout/cuota/proveedor. Sin transacción SQL durante la llamada NIM. Token de claim, lease y versión de pausa impiden duplicados o que una respuesta antigua se publique después de pausar/reanudar.
 - Contexto: hasta 20 turnos y 12.000 caracteres de la misma conversación, solo entradas y respuestas Nadia anteriores. La identidad inicial de IA se antepone por código. Se conserva el error sin texto inventado cuando NVIDIA falla; la instrucción de no inventar datos y usar lenguaje neutral sigue requiriendo evaluación del modelo real, no es una garantía semántica demostrada por pruebas con dobles.
@@ -70,10 +70,10 @@ La verificación de Vercel detectó `whatsapp-app` como proyecto separado, conec
 | Persistencia, duplicados, pausa/reanudación y aislamiento | Pruebas con PostgreSQL 16 real desechable y transacciones/conexiones reales; inferencia inyectada sintética |
 | Primera presentación y límites del adaptador | Pruebas de contrato con transporte inyectado, deadline efectivo, host fijo, sin redirects y lectura acotada |
 | Interfaz y permisos | Pruebas Playwright en escritorio/móvil contra respuestas API sintéticas |
-| NVIDIA NIM real | BLOQUEADO: falta publicar NVIDIA_API_KEY en configuración segura y verificar cuota/disponibilidad del modelo |
+| NVIDIA NIM real | NO EJECUTADA por instrucción explícita del usuario; disponibilidad/cuota/modelo no validados |
 | WhatsApp real | FUERA DE ESTE PR; ninguna prueba automática envía mensajes reales |
-| Migración 007 remota | NO EJECUTADA: pendiente revisión del PR; no repetir 001–006 |
+| Migración 007 remota | APLICADA y verificada en desarrollo: tablas/RLS/índices/FK y datos anteriores preservados; no repetir 001–007 |
 
-El PR permanece en borrador mientras falte la validación real requerida. No copiar una credencial expuesta a código, logs, fixtures ni configuración versionada. La configuración del entorno preparada para NVIDIA debe guardarse/publicarse por el usuario para estar disponible; guardarla como draft no la activa en el runtime.
+El usuario dispensó la prueba real para este incremento y autorizó 007; el PR puede pasar a revisión técnica. Esa dispensa no constituye evidencia NVIDIA real ni habilita el runtime. No copiar una credencial expuesta a código, logs, fixtures ni configuración versionada. La configuración del entorno preparada para NVIDIA debe guardarse/publicarse por el usuario para estar disponible; guardarla como draft no la activa en el runtime.
 
 [Pruebas y limitaciones del PR #28](NADIA-MVP-PROOF.md).

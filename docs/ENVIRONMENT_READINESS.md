@@ -54,3 +54,7 @@ Actualizar [el tablero](progress.html) y [el resumen](PROGRESS.md) con resultado
 El usuario autorizó la aplicación de 005 después de integrar PR #18. Se comprobó primero que faltaban tabla/constraint; se aplicó solo esa transacción al proyecto de desarrollo. Verificados FK por conversación/canal/tienda/organización, estados/claims, índices y RLS sin políticas de navegador. Cola inicialmente vacía y conteos de datos existentes sin cambios. No repetir 001–005. El diagnóstico SQL de metadatos ya incluye sandbox_dispatch. La prueba remota ampliada añade operaciones sintéticas del repositorio y su limpieza; no envía a Meta.
 
 Prueba ampliada [40270492905](https://github.com/cesartapian/lamadeja-saas/actions/runs/40270492905) aprobada: 28 comprobaciones, repositorio sandbox compilado contra Supabase real y limpieza completa. Confirmaciones del proveedor sintéticas, sin envío Meta.
+
+## Nadia: migración 007 aplicada
+
+Aplicación autorizada directamente por el usuario, sin repetir migraciones previas. RLS habilitada en nadia_settings/nadia_conversations/nadia_runs sin políticas de navegador; índices, claves de origen y FK de outbox verificados. Datos existentes preservados y sin jobs/salidas Nadia. La prueba real NVIDIA fue omitida por instrucción del usuario; no habilita inferencias ni envíos.
