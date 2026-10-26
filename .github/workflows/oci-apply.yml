@@ -1,0 +1,39 @@
+name: lamadeja-dev - retry OCI Apply
+
+on:
+  schedule:
+    - cron: '7,27,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: lamadeja-dev-oci-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+      OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }}
+      OCI_CLI_REGION: sa-santiago-1
+      STACK_ID: ${{ secrets.OCI_STACK_OCID }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install OCI CLI
+        run: |
+          python3 -m venv "$RUNNER_TEMP/oci"
+          "$RUNNER_TEMP/oci/bin/pip" install --quiet oci-cli
+          echo "$RUNNER_TEMP/oci/bin" >> "$GITHUB_PATH"
+      - name: Retry capacity failure or disable after success
+        run: python3 .github/scripts/oci_capacity_retry.py
