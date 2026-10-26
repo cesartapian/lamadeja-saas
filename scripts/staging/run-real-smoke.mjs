@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chromium } from 'playwright';
 import { stagingConfig, envFile, developmentRef } from './config.mjs';
 import { buildImages, compose } from './docker.mjs';
+import { sandboxRepository } from '../../apps/api/dist/lib/sandboxRepository.js';
 
 // This is opt-in to the dedicated development project. No mocks or admin session.
 let phase = 'configuration', directory, database, auth, browser, fixtureCreated = false, stackCreated = false, runtimeEnv;
@@ -48,6 +49,12 @@ try {
   const schema = (await database.query(`select to_regclass('public.message_outbox') is not null as outbox,
     coalesce((select relrowsecurity from pg_class where oid=to_regclass('public.message_outbox')),false) as rls`)).rows[0];
   check(schema.outbox && schema.rls, 'development_outbox_schema_present');
+  const sandboxSchema = (await database.query(`select to_regclass('public.sandbox_dispatch') is not null as present,
+    coalesce((select relrowsecurity from pg_class where oid=to_regclass('public.sandbox_dispatch')),false) as rls,
+    to_regclass('public.sandbox_dispatch_due') is not null as due,
+    to_regclass('public.sandbox_dispatch_expired') is not null as expired,
+    to_regclass('public.sandbox_provider_message_unique') is not null as provider_unique`)).rows[0];
+  check(sandboxSchema.present && sandboxSchema.rls && sandboxSchema.due && sandboxSchema.expired && sandboxSchema.provider_unique, 'development_sandbox_005_schema_present');
   directory = await mkdtemp(join(tmpdir(), 'lamadeja-real-staging-'));
   const apiPort = Number(process.env.STAGING_API_PORT || 4000), webPort = Number(process.env.STAGING_WEB_PORT || 5173);
   check(Number.isInteger(apiPort) && apiPort > 0 && apiPort <= 65535 && Number.isInteger(webPort) && webPort > 0 && webPort <= 65535, 'valid_fixture_ports');
@@ -109,6 +116,28 @@ try {
   const history = await (await request(`/api/conversations/${conversation.id}/messages`)).json();
   check(history.messages.length === 1 && history.messages[0].body === message, 'worker_persisted_one_incoming_message');
   const contact = await request(`/api/contacts/${conversation.contact_id}`); check(contact.status === 200, 'contact_read_authorized');
+  // Exercise the compiled repository on the owned fixture only. No Meta adapter
+  // is called: these synthetic outcomes verify durable storage, not delivery.
+  phase = 'sandbox_005_persistence';
+  const sandbox = sandboxRepository(database, { organizationId, storeId, channelId });
+  const sandboxInput = { conversationId: conversation.id, requestedBy: user.id, idempotencyKey: randomUUID(), recipient: '+15555550100', body: `Sandbox persistence ${runId}` };
+  const sandboxQueued = await sandbox.enqueue(sandboxInput);
+  const sandboxDuplicate = await sandbox.enqueue(sandboxInput);
+  check(sandboxQueued.created && !sandboxDuplicate.created && sandboxQueued.job.id === sandboxDuplicate.job.id, 'sandbox_005_idempotency');
+  const claimRef = job => {
+    check(Boolean(job?.claimToken), 'sandbox_005_claim_owned');
+    return { id: job.id, version: job.version, claimToken: job.claimToken };
+  };
+  const sandboxClaim = await sandbox.claim();
+  const sandboxStart = await sandbox.begin(claimRef(sandboxClaim));
+  check(sandboxStart?.state === 'dispatching' && sandboxStart.attempts === 1, 'sandbox_005_dispatch_start_persisted');
+  check(await sandbox.begin(claimRef(sandboxClaim)) === null, 'sandbox_005_stale_version_rejected');
+  const sandboxUnknown = await sandbox.complete(claimRef(sandboxStart), { kind: 'unknown' });
+  check(sandboxUnknown?.state === 'unknown' && await sandbox.claim() === null, 'sandbox_005_ambiguous_result_not_retried');
+  await sandbox.enqueue({ ...sandboxInput, idempotencyKey: randomUUID() });
+  const sandboxAcceptedStart = await sandbox.begin(claimRef(await sandbox.claim()));
+  const sandboxAccepted = await sandbox.complete(claimRef(sandboxAcceptedStart), { kind: 'accepted', providerMessageId: `wamid.staging-${runId}` });
+  check(sandboxAccepted?.state === 'accepted' && await sandbox.claim() === null, 'sandbox_005_synthetic_acceptance_persisted');
   phase = 'simulated_outbox';
   const submission = { body: `Remote reply ${runId}`, idempotencyKey: randomUUID() };
   const created = await request(`/api/conversations/${conversation.id}/outbox`, submission);
@@ -152,7 +181,7 @@ try {
         await client.query('begin');
         const owned = await client.query('select id from organizations where id=$1 and name=$2 for update', [organizationId, marker]);
         if (owned.rowCount !== 1) throw new Error('Fixture ownership mismatch');
-        for (const table of ['message_outbox', 'webhook_inbox', 'messages', 'conversations', 'contacts', 'channel_connections', 'organization_members', 'stores']) {
+        for (const table of ['sandbox_dispatch', 'message_outbox', 'webhook_inbox', 'messages', 'conversations', 'contacts', 'channel_connections', 'organization_members', 'stores']) {
           await client.query(`delete from ${table} where organization_id=$1`, [organizationId]);
         }
         await client.query('delete from organizations where id=$1 and name=$2', [organizationId, marker]);

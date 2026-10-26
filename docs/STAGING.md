@@ -15,7 +15,7 @@ No `.env`, private key or CA file is copied into an image. Production secrets ar
 
 Requirements: Docker Engine with BuildKit and Compose **2.30+**, network access to the chosen Supabase session pooler, and the official current CA for that endpoint. Persistent hosting and any associated cost must be selected/authorized separately; no server was purchased by this task.
 
-1. Apply the reviewed migrations once to the isolated development database. Migration 004 was already verified there; do not rerun it or 001–003.
+1. Apply the reviewed migrations once to the isolated development database. Migrations 004 and 005 were already applied and verified in development; do not rerun 001–005.
 2. Copy `deploy/staging.env.example` to a private file **outside the checkout** and complete its values. It is raw `KEY=value` format: no shell quotes/interpolation. Use the same verified public Auth key for the frontend/API, correct allowed email and tenant IDs, and a percent-encoded PostgreSQL URI with `sslmode=verify-full`. Do not embed a workstation-only `sslrootcert` path; the shared CA mount supplies trust.
 3. Set `STAGING_ENV_FILE` to that private file and `STAGING_CA_FILE` to the trusted public CA PEM. Export `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_API_URL` as public build settings. For the browser, the API URL must be reachable from the browser; Docker service names are not public URLs. Production origins must be HTTPS.
 4. Build and start from the repository root:
@@ -72,8 +72,9 @@ The smoke test obtains a real session from Supabase, verifies database TLS, crea
 
 1. Anonymous/invalid sessions denied, real identity authorized, server tenant scope enforced.
 2. Signed synthetic event durably accepted/deduplicated, processed by the compiled inbox worker and read as conversation/message/contact.
-3. Authenticated outbox insert, exact retry, conflicting-key rejection and completed simulation with no real outgoing message.
-4. Playwright opens the compiled frontend using that genuine session and exercises the UI against real Auth/API/database/workers. No route interception, fake identity lookup or response mocks.
+3. Migration 005 presence and the compiled sandbox repository on the owned tenant: idempotency, durable dispatch start, stale-version rejection, unknown blocking retries and synthetic acceptance. No Meta call or delivery claim.
+4. Authenticated outbox insert, exact retry, conflicting-key rejection and completed simulation with no real outgoing message.
+5. Playwright opens the compiled frontend using that genuine session and exercises the UI against real Auth/API/database/workers. No route interception, fake identity lookup or response mocks.
 
 Workers are scoped to the temporary tenant so they cannot consume other development tenants' queues. No migrations or global Auth settings are changed by the smoke test. Cleanup stops its namespaced containers, deletes only its owned temporary tenant/data, signs out its own test session and deletes private temporary runtime files. It never deletes the test account or existing user data.
 
@@ -84,3 +85,5 @@ To run this same test on an authorized remote runner outside Actions, supply the
 ## Current limits
 
 The real-service workflow [passed on GitHub Actions](https://github.com/cesartapian/lamadeja-saas/actions/runs/40229617433). Its downloaded summary confirms 21 distinct checks, status `passed`, and `fixture_cleanup_complete: true`, including genuine test-account authentication, verified database TLS, scoped API/workers and browser simulation. The dedicated test account and five Actions secrets are configured. This is a temporary remote runner, not a long-lived hosted environment. Interactive Google sign-in, the published Live Manager link and real WhatsApp remain separate checks. No paid service has been provisioned.
+
+Migration 005 was explicitly authorized and applied to the selected development project on 2026-10-26 after PR #18 merged with successful review/checks. Metadata verified its scoped foreign key, state/claim constraints, all indexes, RLS and absence of browser policies; existing user/member/store/conversation/message counts were unchanged. The original 21-check run predates this extension; the expanded workflow must pass separately before claiming runtime verification of 005. The test command compiles the API first to exercise its actual repository.

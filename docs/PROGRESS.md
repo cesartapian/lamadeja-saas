@@ -85,3 +85,7 @@ Migración 005 y repositorio transaccional independientes de la outbox simulada:
 Validación del incremento de persistencia: suite completa con PostgreSQL 16 desechable, 36 pruebas aprobadas (6 scripts y 30 API, incluidos subcasos), ninguna omitida; tablero en escritorio/móvil aprobado, tipos y lint correctos. No se presenta como migración aplicada ni como prueba Meta real.
 
 Tras la revisión de Claude se añadió comprobación transaccional de membresía al encolar y manejo del evento de error de la conexión activa; si falla la conexión/rollback, se descarta del pool. La prueba termina deliberadamente un backend PostgreSQL y confirma rollback, recuperación del pool e idempotencia al repetir la solicitud.
+
+## Migración 005 aplicada en desarrollo
+
+El 26 de octubre, por autorización explícita del usuario, se aplicó únicamente 005 del PR #18 ya integrado. Preflight confirmó ausencia de tabla/constraint; transacción DDL con límites de espera; verificación posterior confirmó cola vacía, RLS, cero políticas de navegador, restricciones e índices. Los conteos de usuarios, membresías, tiendas, conversaciones y mensajes permanecieron iguales. No se repitió ninguna migración anterior. El workflow real se amplía para probar el repositorio compilado en el tenant temporal y borrar sandbox_dispatch durante la limpieza. Pendiente registrar el resultado de esa ejecución ampliada; sin transporte ni entrega Meta real.
