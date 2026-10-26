@@ -98,7 +98,7 @@ test('signed HTTP webhook -> durable inbox -> worker -> authenticated tenant-sco
     assert.equal(conversations[0].contact_phone, '56912345678');
     const messages = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages`, { headers })).json();
     assert.equal(messages.messages[0].body, 'Hola');
-    await f.query(`insert into messages(organization_id,conversation_id,direction,body,created_at) values($1,$2,'in','Earlier','2025-01-01T13:00:00Z'),($1,$2,'in','Previous','2025-01-01T14:00:00Z')`, [org, conversations[0].id]);
+    await f.query(`insert into messages(organization_id,conversation_id,direction,body,created_at) values($1,$2,'in','Earlier','2023-11-14T20:00:00Z'),($1,$2,'in','Previous','2023-11-14T21:00:00Z')`, [org, conversations[0].id]);
     const newest = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc`, { headers })).json();
     assert.equal(newest.messages[0].body, 'Hola'); assert.equal(newest.hasMore, true); assert.equal(newest.nextOffset, 1);
     const previous = await (await fetch(`${url}/api/conversations/${conversations[0].id}/messages?limit=1&order=desc&offset=1`, { headers })).json();
@@ -117,6 +117,53 @@ test('signed HTTP webhook -> durable inbox -> worker -> authenticated tenant-sco
     await f.query('delete from organization_members');
     assert.equal((await fetch(`${url}/api/conversations`, { headers })).status, 403);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await f.db.close(); }
+});
+
+test('message history and latest preview use effective timestamps with stable ID ties', async () => {
+  const f = await fixture();
+  let server: ReturnType<typeof express.application.listen> | undefined;
+  try {
+    await f.enqueue(); await processNext(f.pool, options);
+    const conversation = (await f.query('select id from conversations')).rows[0] as { id: string };
+    await f.query('delete from messages');
+    const rows = [
+      ['00000000-0000-4000-8000-000000000014', 'Old delayed delivery', '2025-01-01T00:00:00Z', '2025-01-10T00:00:00Z'],
+      ['00000000-0000-4000-8000-000000000013', 'Fallback middle', null, '2025-01-02T00:00:00Z'],
+      ['00000000-0000-4000-8000-000000000012', 'Fallback latest', null, '2025-01-03T00:00:00Z'],
+      ['00000000-0000-4000-8000-000000000011', 'Tied earlier ID', '2025-01-03T00:00:00Z', '2025-01-09T00:00:00Z'],
+    ];
+    for (const [id, body, sent, created] of rows) {
+      await f.query("insert into messages(id,organization_id,conversation_id,direction,body,sent_at,created_at) values($1,$2,$3,'in',$4,$5,$6)", [id, org, conversation.id, body, sent, created]);
+    }
+    const app = express();
+    app.use('/api', conversationRouter(f.pool, authentication(f.pool, async () => ({ id: user, email: 'test@example.com' }), new Set(['test@example.com']), org, store)));
+    server = app.listen(0, '127.0.0.1'); await once(server, 'listening');
+    const address = server.address(); assert(address && typeof address !== 'string');
+    const get = async (path: string) => {
+      const response = await fetch(`http://127.0.0.1:${address.port}/api${path}`, { headers: { Authorization: 'Bearer fixture' } });
+      assert.equal(response.status, 200); return response.json();
+    };
+    const ascending = ['Old delayed delivery', 'Fallback middle', 'Tied earlier ID', 'Fallback latest'];
+    for (const order of ['asc', 'desc']) {
+      const expected = order === 'asc' ? ascending : [...ascending].reverse();
+      const first = await get(`/conversations/${conversation.id}/messages?order=${order}&limit=2`);
+      assert.deepEqual(first.messages.map((m: { body: string }) => m.body), expected.slice(0, 2));
+      assert.equal(first.hasMore, true);
+      const second = await get(`/conversations/${conversation.id}/messages?order=${order}&limit=2&offset=${first.nextOffset}`);
+      assert.deepEqual(second.messages.map((m: { body: string }) => m.body), expected.slice(2));
+      assert.equal(second.hasMore, false);
+    }
+    const preview = (await get('/conversations')).conversations[0];
+    assert.equal(preview.last_message, 'Fallback latest');
+    assert.equal(preview.last_message_at, '2025-01-03T00:00:00.000Z');
+    await f.query("update messages set sent_at='2025-01-04T00:00:00Z' where body='Tied earlier ID'");
+    const updated = (await get('/conversations')).conversations[0];
+    assert.equal(updated.last_message, 'Tied earlier ID');
+    assert.equal(updated.last_message_at, '2025-01-04T00:00:00.000Z');
+  } finally {
+    if (server) { server.closeAllConnections(); await new Promise<void>(resolve => server!.close(() => resolve())); }
+    await f.db.close();
+  }
 });
 
 test('persistence failure rolls business writes back; retries recover and stop at configured limit', async () => {

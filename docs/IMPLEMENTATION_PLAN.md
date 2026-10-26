@@ -8,14 +8,25 @@
 - [x] Draft relational schema and HMAC tests
 
 ## Milestone 1 — Durable WhatsApp messaging
-- [ ] Choose isolated PostgreSQL deployment and run reviewed migrations
-- [ ] RLS + authorization tests and cross-store isolation tests
-- [ ] Map Meta phone_number_id to a server-owned channel connection
-- [ ] Persist webhook events transactionally before HTTP 200
-- [ ] Deduplicate inbound messages by Meta message ID and webhook delivery
-- [ ] Add async worker and retry/dead-letter policy
+- [x] Choose isolated PostgreSQL deployment and run reviewed migrations
+- [x] RLS + authorization tests and cross-store isolation tests
+- [x] Map Meta phone_number_id to a server-owned channel connection
+- [x] Persist webhook events transactionally before HTTP 200
+- [x] Deduplicate inbound messages by Meta message ID and webhook delivery
+- [x] Add async worker and retry/dead-letter policy
 - [ ] Port Meta sender and delivery status handling from whatsapp-app
 - [ ] End-to-end sandbox tests with Meta test number
+
+## Development validation and publication
+- [x] Read-only inbox, message history, contact details and simulated persistent outbox
+- [x] Genuine Supabase/Auth/API/workers/browser integration passed on Actions (run 40229617433), with fixture cleanup
+- [x] Compiled containers, readiness, graceful termination and DB recovery tests
+- [ ] Public deployment and Google sign-in from the published domain
+- [ ] Activate Live Manager → SaaS link
+
+Oracle Always Free A1 creation was attempted, but AD-1 returned out-of-capacity. The user deferred VM creation. No running Oracle VM, deployment or zero-cost billing verification is claimed. Continue code and tests independently; do not switch to paid resources.
+
+Before the pending real Meta sender: review durable claims, ambiguous-result reconciliation, delivery receipts and explicit sandbox recipient/policy controls. The simulated outbox is not an authorized production transport.
 
 ## Milestone 2 — Commerce
 - [ ] Implement secure Shopify OAuth/install and token storage

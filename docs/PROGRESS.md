@@ -69,3 +69,7 @@ Origen confirmado: livemanager.lamadeja.cl. La entrada Conversaciones está prep
 4. Validar el recorrido publicado antes de habilitar cualquier WhatsApp real.
 
 Actualizar este resumen y progress.html con evidencia observada. Mantener separados implementado, probado con simulación, verificado con servicio real y desplegado. Shopify/CRM/asistencia siguen siendo orientación futura, no fechas comprometidas.
+
+## Continuación sin servidor Oracle
+
+La creación de A1 en AD-1 devolvió falta de capacidad y el usuario decidió posponerla. No existe despliegue Oracle verificado ni costo cero confirmado. La prueba real de Actions sigue aprobada y permite avanzar sin depender del PC. El siguiente ajuste corrige hilo/vista previa para ordenar por coalesce(sent_at, created_at), con id como desempate y timestamp de vista previa coherente; cubre llegadas tardías, valores nulos y paginación en ambos sentidos. El plan de implementación ya distingue tareas completadas de publicación y transporte Meta pendientes.
