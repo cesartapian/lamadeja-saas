@@ -26,7 +26,7 @@
 
 Oracle Always Free A1 creation was attempted, but AD-1 returned out-of-capacity. The user deferred VM creation. No running Oracle VM, deployment or zero-cost billing verification is claimed. Continue code and tests independently; do not switch to paid resources.
 
-Before the pending real Meta sender: review durable claims, ambiguous-result reconciliation, delivery receipts and explicit sandbox recipient/policy controls. [Preparatory design and executable decision contract](WHATSAPP_SANDBOX_DESIGN.md) cover retry eligibility and sandbox text admission; SQL persistence, provider adapter, receipts and real E2E remain pending. The simulated outbox is not an authorized production transport.
+Before the pending real Meta sender: review durable claims, ambiguous-result reconciliation, delivery receipts and explicit sandbox recipient/policy controls. [Preparatory design and executable decision contract](WHATSAPP_SANDBOX_DESIGN.md) cover retry eligibility and sandbox text admission; Migration 005 and scoped PostgreSQL claims/versioned transitions are implemented and tested on disposable PostgreSQL; applying 005 to Supabase, runtime integration, provider adapter, receipts and real E2E remain pending. The simulated outbox is not an authorized production transport.
 
 ## Milestone 2 — Commerce
 - [ ] Implement secure Shopify OAuth/install and token storage

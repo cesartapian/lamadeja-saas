@@ -1,12 +1,12 @@
 # Envío WhatsApp sandbox: contrato previo al transporte
 
-Estado: diseño y funciones de decisión probadas; **sin conexión al runtime, migración ni envío real**. La outbox existente sigue siendo exclusivamente simulada. `OUTBOX_MODE` solo permite `disabled` o `simulated`; no hay una variable nueva que active Meta.
+Estado: diseño, funciones de decisión y repositorio PostgreSQL; **sin conexión al runtime ni envío real**. La migración 005 está preparada y probada en una base desechable; no se aplicó a Supabase. La outbox existente sigue siendo exclusivamente simulada. `OUTBOX_MODE` solo permite `disabled` o `simulated`; no hay una variable nueva que active Meta.
 
 ## Por qué la simulación no puede convertirse directamente en transporte
 
 La transacción de simulación se puede revertir, pero una petición aceptada por Meta no se revierte al perder PostgreSQL. Un timeout tampoco demuestra que el proveedor no recibió el mensaje. Reenviar automáticamente un resultado incierto puede duplicar mensajes. No se presume soporte de idempotencia del proveedor ni garantía exactly-once.
 
-El módulo preparatorio `apps/api/src/lib/sandboxDispatch.ts` define decisiones puras. No proporciona concurrencia, persistencia, recuperación ni autorización por sí mismo: esas garantías requieren la siguiente implementación transaccional y un adaptador revisado.
+El módulo preparatorio `apps/api/src/lib/sandboxDispatch.ts` define decisiones puras. `sandboxRepository.ts` persiste claims/transiciones en transacciones cortas con ámbito explícito, tokens nuevos, versionado y reloj de PostgreSQL. No está montado en rutas ni workers; no autoriza solicitudes por sí mismo ni llama a Meta.
 
 ```mermaid
 stateDiagram-v2
@@ -24,7 +24,7 @@ stateDiagram-v2
     failed --> [*]
 ```
 
-## Contrato de persistencia pendiente
+## Contrato de persistencia y límites
 
 1. Crear una cola sandbox separada, con claves compuestas organización/tienda/canal y relación a conversación/destinatario. Mantener la cola simulada y su historial independientes; no reinterpretar registros `simulated` como enviados.
 2. Guardar solicitud autenticada e idempotencia local antes de responder. Usar UUID de tarea, versión, token de claim único por adquisición, lease, próximo intento e identificador del proveedor. El token debe ser nuevo e impredecible; el contrato puro no genera tokens ni impide que un llamador reutilice uno.
@@ -56,6 +56,16 @@ Las credenciales se guardarán en un gestor seguro, nunca en filas de negocio, l
 
 ## Evidencia y siguiente incremento
 
-Las pruebas unitarias del contrato cubren crash antes/después del inicio duradero, leases vencidos, token obsoleto, timeout ambiguo, aceptación distinta de entrega, retrasos/reintentos y agotamiento, y la política de destinatario/ventana/ámbito. No afirman persistencia real, transporte Meta ni concurrencia SQL.
+Las pruebas unitarias del contrato cubren crash antes/después del inicio duradero, leases vencidos, token obsoleto, timeout ambiguo, aceptación distinta de entrega, retrasos/reintentos y agotamiento, y la política de destinatario/ventana/ámbito. La suite sandboxRepository.test.ts usa PostgreSQL 16 con conexiones independientes para verificar concurrencia, bloqueo saltado, idempotencia, aislamiento, versionado, recuperación y fallo al persistir una confirmación. No prueba transporte Meta.
 
-Siguiente PR: migración aditiva y repositorio transaccional con versionado/fencing, recuperación y pruebas de concurrencia en PostgreSQL. Después: adaptador Meta de pruebas y receipts; finalmente, prueba E2E con número sandbox y autorización. El servidor Oracle y el dominio público siguen pendientes; el desarrollo de estas piezas no depende de que haya capacidad A1 hoy.
+Implementados en este incremento: migración aditiva 005 y repositorio transaccional con versionado/fencing, recuperación y pruebas de concurrencia en PostgreSQL. Siguiente: persistencia/conciliación de receipts y adaptador Meta de pruebas; después, integración de autorización/política y prueba E2E con número sandbox y autorización. El servidor Oracle y el dominio público siguen pendientes; el desarrollo de estas piezas no depende de que haya capacidad A1 hoy.
+
+## Uso y aplicación de la migración 005
+
+La tabla `sandbox_dispatch` es independiente de `message_outbox`. La clave compuesta impide encolar una conversación bajo otro canal/tienda/organización. RLS queda habilitada sin políticas de navegador. No añade un modo sandbox a OUTBOX_MODE ni instala un worker.
+
+`enqueue` devuelve la misma tarea para una solicitud idéntica; rechaza reutilizar la clave para otro cuerpo, destinatario, canal, conversación, solicitante o límite de intentos. `claim` devuelve una tarea con versión/token. `begin` exige esa referencia vigente y devuelve una versión nueva ya confirmada; solo después de recibir ese resultado podría un futuro integrador iniciar HTTP. `complete` debe recibir la referencia actualizada, nunca la de claim. Devuelve null para referencias ajenas, obsoletas o vencidas; los errores de escritura/commit se propagan y no disparan reenvíos. La vigencia también se comprueba en el UPDATE final. `recover` tiene ámbito y límite de lote; debe ejecutarse explícitamente, no hay scheduler conectado.
+
+Las transacciones tienen timeouts. Si begin/commit arroja un error, el llamador no debe iniciar HTTP; un commit ambiguo queda para recuperación conservadora. Un complete fallido tras el proveedor debe conservarse para conciliación: no llamar nuevamente al proveedor ni encolar otro mensaje. El repositorio no conserva todavía respuestas tardías/receipts, no revalida la ventana de 24 horas al despachar, no impone límites de tasa ni expone una API autenticada. Esas capas son requisitos antes de habilitar el transporte.
+
+La suite usa un esquema UUID temporal en TEST_DATABASE_URL y aplica 001–005 solo allí. CI ya proporciona una base PostgreSQL desechable. No apuntar esa variable a Supabase ni a producción. La migración 005 se propone para revisión; el smoke test de Supabase sigue usando el esquema 001–004 existente y no afirma probar esta nueva tabla remota. Tras revisión, aplicar solo 005 mediante el procedimiento de migraciones del proyecto, nunca repetir 001–004. No hacer rollback borrando una cola poblada; conservar trabajos accepted/unknown para conciliación.
