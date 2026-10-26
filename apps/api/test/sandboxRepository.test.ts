@@ -10,10 +10,16 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
   const admin = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
   const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 8, options: `-c search_path=${schema},public` });
   const secondPool = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 3, options: `-c search_path=${schema},public` });
+  // The application's shared pool also handles idle errors. Record these so
+  // deliberate backend termination cannot become an unhandled EventEmitter error.
+  const idleErrors: Error[] = [];
+  pool.on('error', error => idleErrors.push(error));
+  secondPool.on('error', error => idleErrors.push(error));
   const user = randomUUID();
   async function seed() {
     const organizationId = randomUUID(), storeId = randomUUID(), channelId = randomUUID(), conversationId = randomUUID(), contactId = randomUUID();
     await pool.query("insert into organizations(id,name) values($1,'Synthetic sandbox')", [organizationId]);
+    await pool.query("insert into organization_members(organization_id,user_id,role) values($1,$2,'agent')", [organizationId, user]);
     await pool.query("insert into stores(id,organization_id,name) values($1,$2,'Synthetic')", [storeId, organizationId]);
     await pool.query("insert into channel_connections(id,organization_id,store_id,provider,external_account_id) values($1,$2,$3,'whatsapp',$4)", [channelId, organizationId, storeId, randomUUID()]);
     await pool.query('insert into contacts(id,organization_id,store_id) values($1,$2,$3)', [contactId, organizationId, storeId]);
@@ -39,6 +45,7 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
       assert.equal(results.filter(result => result.created).length, 1);
       await assert.rejects(f.repo.enqueue({ ...input, body: 'Different body' }), /idempotency conflict/);
       await assert.rejects(f.repo.enqueue({ ...input, recipient: '+56999999999' }), /idempotency conflict/);
+      await assert.rejects(f.repo.enqueue({ ...input, idempotencyKey: randomUUID(), requestedBy: randomUUID() }), /not an organization member/);
       await assert.rejects(other.repo.enqueue(input));
       const extraChannel = randomUUID();
       await pool.query("insert into channel_connections(id,organization_id,store_id,provider,external_account_id) values($1,$2,$3,'whatsapp',$4)", [extraChannel, f.scope.organizationId, f.scope.storeId, randomUUID()]);
@@ -105,6 +112,18 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
       assert.equal(await f.repo.complete(ref(started), { kind: 'unknown' }), null);
       assert.equal(await f.repo.claim(), null);
     });
+    await t.test('connection loss rolls back enqueue and the pool can retry the same key safely', async () => {
+      const f = await seed(), input = { ...f.input(), body: 'Disconnect fixture' };
+      await pool.query(`create function disconnect_sandbox_enqueue() returns trigger language plpgsql as $$ begin
+        if new.body='Disconnect fixture' then perform pg_terminate_backend(pg_backend_pid()); end if; return new; end $$;
+        create trigger disconnect_enqueue before insert on sandbox_dispatch for each row execute function disconnect_sandbox_enqueue()`);
+      try {
+        await assert.rejects(f.repo.enqueue(input));
+        assert.equal((await pool.query('select count(*)::int as count from sandbox_dispatch where idempotency_key=$1', [input.idempotencyKey])).rows[0].count, 0);
+      } finally { await pool.query('drop trigger disconnect_enqueue on sandbox_dispatch; drop function disconnect_sandbox_enqueue()'); }
+      assert.equal((await f.repo.enqueue(input)).created, true);
+      assert.equal((await f.otherWorker.enqueue(input)).created, false);
+    });
     await t.test('failure persisting a provider acknowledgement leaves dispatch durable and recovers as unknown', async () => {
       const f = await seed(); await f.repo.enqueue(f.input());
       const started = await f.repo.begin(ref(await f.repo.claim())); assert(started);
@@ -120,6 +139,7 @@ test('PostgreSQL: sandbox claims persist, fence concurrent workers and preserve 
       } finally { await pool.query('drop trigger reject_ack on sandbox_dispatch; drop function reject_sandbox_ack()'); }
       assert.equal((await pool.query("select count(*)::int as count from messages where direction='out'")).rows[0].count, 0);
     });
+    assert(idleErrors.every(error => error.message === 'Connection terminated unexpectedly'));
   } finally {
     await secondPool.end(); await pool.end();
     await admin.query(`drop schema if exists ${schema} cascade`); await admin.end();

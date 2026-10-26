@@ -28,14 +28,20 @@ export function sandboxRepository(pool: Pool, scopeInput: SandboxScope) {
   const params = [scope.organizationId, scope.storeId, scope.channelId];
   async function transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await pool.connect();
+    let releaseError: Error | undefined;
+    const onConnectionError = () => { releaseError = new Error('Sandbox connection failed'); };
+    client.on('error', onConnectionError);
     try {
       await client.query('begin');
       await client.query("set local statement_timeout='5s'; set local idle_in_transaction_session_timeout='10s'");
       const result = await work(client);
       await client.query('commit');
       return result;
-    } catch (error) { await client.query('rollback').catch(() => {}); throw error; }
-    finally { client.release(); }
+    } catch (error) {
+      try { await client.query('rollback'); }
+      catch { releaseError = new Error('Sandbox transaction rollback failed'); }
+      throw error;
+    } finally { client.release(releaseError); client.off('error', onConnectionError); }
   }
   async function time(client: PoolClient): Promise<number> {
     return (await client.query('select floor(extract(epoch from clock_timestamp())*1000)::float8 as now_ms')).rows[0].now_ms;
@@ -67,6 +73,8 @@ export function sandboxRepository(pool: Pool, scopeInput: SandboxScope) {
         recipient: z.string().regex(/^\+[1-9][0-9]{7,14}$/), body: z.string().max(4096).refine(value => value.trim().length > 0),
         maxAttempts: z.number().int().min(1).max(100).default(5) }).parse(input);
       return transaction(async client => {
+        const membership = await client.query('select 1 from organization_members where organization_id=$1 and user_id=$2 for key share', [scope.organizationId, data.requestedBy]);
+        if (!membership.rowCount) throw new Error('Sandbox requester is not an organization member');
         const inserted = await client.query(`insert into sandbox_dispatch(organization_id,store_id,channel_id,conversation_id,requested_by,idempotency_key,recipient,body,max_attempts)
           values($1,$2,$3,$4,$5,$6,$7,$8,$9) on conflict(organization_id,store_id,idempotency_key) do nothing returning *`,
         [...params, data.conversationId, data.requestedBy, data.idempotencyKey, data.recipient, data.body, data.maxAttempts]);
