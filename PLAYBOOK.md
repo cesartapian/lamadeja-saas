@@ -1,7 +1,7 @@
-# Playbook — WhatsApp SaaS: Codex construye, Claude Code revisa y fusiona
+# Playbook — WhatsApp SaaS: Codex construye, Claude Code revisa, el propietario autoriza merge
 
 ## Ámbitos y autoridad
-- **WhatsApp SaaS (`cesartapian/lamadeja-saas`):** repositorio de desarrollo autónomo. Codex prepara código y PRs; Claude Code revisa y ejecuta el merge a `main` cuando no quedan observaciones y los controles aplicables pasan. El usuario no tiene que aprobar cada merge.
+- **WhatsApp SaaS (`cesartapian/lamadeja-saas`):** repositorio de desarrollo autónomo. Codex prepara código y PRs; Claude Code revisa técnicamente. Cada merge requiere autorización expresa del propietario para el SHA exacto después de revisión y checks.
 - **Live Manager:** repositorio independiente e intacto. Solo el usuario autoriza el merge a `main`, que representa su paso a producción. Este playbook no modifica sus instrucciones ni permisos.
 - **La Madeja:** sistemas operativos existentes fuera del alcance del SaaS. No alterar sistemas externos o datos reales accidentalmente.
 
@@ -11,16 +11,16 @@
 3. **Revisión del plan:** Claude Code evalúa intención, alcance y viabilidad; deja constancia verificable de `APROBADO PARA IMPLEMENTAR` o `CAMBIOS SOLICITADOS`. No asumir aprobación por silencio.
 4. **Implementación:** Codex desarrolla y corrige autónomamente en rama independiente. Si cambia la intención de negocio, actualizar y volver a revisar el plan.
 5. **PR y revisión:** adjuntar evidencia de criterios y pruebas. Claude Code solicita correcciones hasta quedar conforme; registra la revisión.
-6. **Merge:** **Claude Code realiza el merge a `main` del SaaS** cuando aprueba y se cumplen los checks y protecciones aplicables de GitHub. No necesita autorización individual del usuario. Si no puede ejecutarlo, informa el bloqueo; no se declara fusionado.
+6. **Merge:** separar aprobación técnica, aprobación funcional para implementar y autorización del propietario para merge. Solo el propietario autoriza cada SHA con el procedimiento de `docs/workflow/MERGE_AUTHORIZATION.md`. Un commit nuevo invalida la autorización; no inferirla de silencio, etiquetas, comentarios genéricos o bots. No fusionar si falta cualquier control.
 
 ## Ruta rápida
-Para correcciones técnicas pequeñas, documentación y refactorizaciones sin cambio sustancial de negocio: Codex crea rama, implementa y prueba, abre PR; Claude Code revisa y fusiona si corresponde. No imponer revisión separada de plan.
+Para correcciones técnicas pequeñas, documentación y refactorizaciones sin cambio sustancial de negocio: Codex crea rama, implementa y prueba, abre PR; Claude Code revisa; el propietario debe autorizar expresamente el SHA para merge. No imponer revisión separada de plan.
 
 ## Evidencia
 Vincular intención y criterios cuando aplique, resultados reales de pruebas, limitaciones, riesgos y observaciones resueltas. Una solicitud de revisión no equivale a aprobación.
 
 ## Límites
-No tocar repositorio ni producción de Live Manager; no modificar La Madeja operativa. Evitar envíos reales de WhatsApp, cambios destructivos o impactos sobre clientes/servicios externos fuera del alcance autorizado. Estos límites no constituyen un requisito de aprobación del usuario para fusionar PRs ordinarios del SaaS.
+No tocar repositorio ni producción de Live Manager; no modificar La Madeja operativa. Evitar envíos reales de WhatsApp, cambios destructivos o impactos sobre clientes/servicios externos fuera del alcance autorizado. Todos los PR del SaaS, incluidos los ordinarios y documentales, requieren autorización expresa del propietario para merge.
 
 ## Mejora continua
 Documentar aprendizajes sin bloquear iteraciones técnicas rutinarias.
