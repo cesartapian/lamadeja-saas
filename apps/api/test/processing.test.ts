@@ -28,7 +28,7 @@ function payload(id = 'wamid.synthetic') {
 }
 async function fixture() {
   const db = new PGlite();
-  for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql']) {
+  for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql', '008_agent_qualification.sql']) {
     const sql = await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8');
     // pgcrypto extension is unavailable in WASM; gen_random_uuid is built into PostgreSQL.
     await db.exec(sql.replace('create extension if not exists pgcrypto;', ''));

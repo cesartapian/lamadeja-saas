@@ -45,7 +45,7 @@ test('PostgreSQL: Nadia inbox, idempotency, conversation pause, fencing and simu
   }
   try {
     await admin.query(`create schema ${schema}`);
-    for (const file of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql']) {
+    for (const file of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql', '008_agent_qualification.sql']) {
       await pool.query(await readFile(new URL(`../../../packages/database/migrations/${file}`, import.meta.url), 'utf8'));
     }
     await pool.query("insert into organizations(id,name) values($1,'Nadia test'),($2,'Foreign')", [org, otherOrg]);
