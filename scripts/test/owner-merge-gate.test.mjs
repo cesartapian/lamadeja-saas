@@ -56,3 +56,26 @@ test('review automation cannot merge and merge execution uses trusted main with 
   const script = await readFile(new URL('../github/owner-merge-gate.cjs', import.meta.url), 'utf8');
   assert.match(script, /pulls.merge\(\{ .*sha, merge_method/);
 });
+
+test('newer successful ready review supersedes skipped draft suite on the same SHA', () => {
+  const v = valid(); const ready = v.checks.find(c => c.name === 'revisar'); ready.id = 20;
+  v.checks.push({ ...ready, id: 10, conclusion: 'skipped' });
+  assert.equal(authorize(v), true);
+  v.checks.reverse(); assert.equal(authorize(v), true);
+});
+test('skipped-only and newer unsuccessful or pending review remain blocked', () => {
+  for (const conclusion of ['skipped', 'failure', 'cancelled', 'timed_out', 'action_required', null]) {
+    const v = valid(); const old = v.checks.find(c => c.name === 'revisar'); old.id = 10;
+    v.checks.push({ ...old, id: 20, conclusion, status: conclusion === null ? 'in_progress' : 'completed' });
+    assert.throws(() => authorize(v));
+  }
+  const w = valid(); w.checks.find(c => c.name === 'revisar').conclusion = 'skipped';
+  assert.throws(() => authorize(w));
+});
+test('ambiguous IDs or different apps cannot hide unsuccessful checks', () => {
+  for (const extra of [{ id: undefined }, { app: { slug: 'other-app' }, id: 1 }]) {
+    const v = valid(); const ready = v.checks.find(c => c.name === 'revisar'); ready.id = 20;
+    v.checks.push({ ...ready, id: 10, conclusion: 'failure', ...extra });
+    assert.throws(() => authorize(v));
+  }
+});

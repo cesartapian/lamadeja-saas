@@ -7,10 +7,16 @@ function authorize({ owner, actor, triggeringActor, attempt, confirmation, sha, 
   if (pr.state !== 'open' || pr.draft || pr.base.ref !== 'main' || pr.head.sha !== sha) deny('PR is not an open ready main PR at the authorized SHA');
   const latest = comments.filter(c => c.user.login === 'claude[bot]' && c.user.type === 'Bot').at(-1);
   if (!latest?.body.startsWith('✅ Aprobado') || !latest.body.split('\n').includes(`HEAD_SHA: ${sha}`)) deny('current SHA technical approval required');
+  // GitHub can return runs from multiple suites for one SHA (draft -> ready).
+  // Only a strictly newer run from the same app/name supersedes an older one.
+  // Preserve ambiguous/missing IDs rather than hiding an unsuccessful check.
+  const currentChecks = checks.filter(check => !checks.some(other =>
+    other !== check && other.name === check.name && other.app?.slug === check.app?.slug &&
+    Number.isSafeInteger(check.id) && Number.isSafeInteger(other.id) && other.id > check.id));
   for (const name of requiredChecks) {
-    if (!checks.some(c => c.name === name && c.app?.slug === 'github-actions' && c.head_sha === sha && c.status === 'completed' && c.conclusion === 'success')) deny(`missing successful ${name}`);
+    if (!currentChecks.some(c => c.name === name && c.app?.slug === 'github-actions' && c.head_sha === sha && c.status === 'completed' && c.conclusion === 'success')) deny(`missing successful ${name}`);
   }
-  if (checks.some(c => c.name !== 'owner-authorized-merge' && (c.status !== 'completed' || c.conclusion !== 'success'))) deny('checks pending, skipped or unsuccessful');
+  if (currentChecks.some(c => c.name !== 'owner-authorized-merge' && (c.status !== 'completed' || c.conclusion !== 'success'))) deny('checks pending, skipped or unsuccessful');
   if (statuses.some(s => s.state !== 'success')) deny('commit status pending or unsuccessful');
   if (!ciRuns.some(r => r.path === '.github/workflows/ci.yml' && r.head_sha === sha && r.status === 'completed' && r.conclusion === 'success')) deny('successful trusted CI workflow required');
   return true;

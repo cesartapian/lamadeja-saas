@@ -22,7 +22,11 @@ El dispatch y su resumen de ejecución dejan constancia del actor, PR, SHA e int
 
 ## Activación y límites administrativos
 
-Este cambio debe ser revisado y autorizado expresamente antes de integrarse. Hasta entonces el workflow antiguo de main continúa vigente: mantener los PR #40/E1 en borrador evita la revisión/merge automático de ese flujo. No marcar ready ni disparar revisiones del flujo antiguo como sustituto de autorización.
+**Arranque:** el PR #41 debe fusionarlo el propietario manualmente desde la interfaz de GitHub, después de revisión técnica, checks y autorización expresa: el workflow de autorización todavía no existe en main.
+
+Los PR que modifican `.github/workflows/` deben fusionarse manualmente por el propietario con esas mismas condiciones. El `GITHUB_TOKEN` del job no dispone del permiso adicional requerido para modificar workflows; la API puede rechazar el merge ("GitHub refused merge" o error HTTP de permisos). No ampliar privilegios ni asumir que un dispatch exitoso autoriza omitir esa restricción.
+
+Este cambio debe ser revisado y autorizado expresamente antes de integrarse. Hasta entonces el workflow antiguo de main continúa vigente: mantener E1 en borrador evita la revisión/merge automático de ese flujo. #41 puede revisarse como ready porque su workflow ya elimina el merge; la acción Claude puede omitir su ejecución por cambiar el propio workflow, y en ese caso requiere revisión independiente registrada. No disparar el flujo antiguo como sustituto de autorización.
 
 Los archivos del repositorio no pueden impedir que un administrador use merge manual, auto-merge, un token externo o un workflow distinto con permisos de escritura. El gate protege **este flujo**, no equivale a una protección universal del servidor. No se han configurado rulesets/protecciones ni revocado tokens. La consulta de protección de main devolvió HTTP 403; el listado de rulesets no devolvió elementos. Esto no demuestra qué protecciones clásicas están activas.
 
@@ -33,3 +37,5 @@ El propietario debe revisar en Settings → Rules/Branches y Actions:
 - Revisar permisos y alcance de GitHub Apps/PAT y workflow tokens. El job de revisión ya no pide `contents: write`; el único job de merge exige dispatch del propietario.
 
 Una configuración administrativa compatible debe conservar revisión independiente y autorización del propietario. No afirmar protección del servidor hasta verificarla. El propio propietario puede realizar un merge manual expresamente autorizado una vez completada revisión/checks; agentes y bots no deducen esa autorización.
+
+Para cada app/nombre se evalúa el check-run de ID más reciente, independientemente del orden de suites. Un skipped histórico de draft no bloquea un success posterior; un fallo o pendiente posterior sí bloquea. IDs ambiguos se conservan y bloquean ante resultados no satisfactorios.
