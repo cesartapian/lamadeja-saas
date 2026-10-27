@@ -16,7 +16,7 @@ const user = '00000000-0000-4000-8000-000000000003';
 const options = { maxAttempts: 2, retrySeconds: 1, timeoutMs: 15000 };
 async function fixture() {
   const db = new PGlite();
-  for (const migration of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql']) {
+  for (const migration of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql', '008_agent_qualification.sql']) {
     const sql = await readFile(new URL(`../../../packages/database/migrations/${migration}`, import.meta.url), 'utf8');
     await db.exec(sql.replace('create extension if not exists pgcrypto;', ''));
   }

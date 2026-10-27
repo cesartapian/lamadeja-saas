@@ -15,7 +15,7 @@ test('PostgreSQL: independent workers skip locked rows and recover disconnected 
   const options = { maxAttempts: 3, retrySeconds: 1, timeoutMs: 15000 };
   try {
     await admin.query(`create schema ${schema}`);
-    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql']) {
+    for (const name of ['001_initial.sql', '002_message_processing.sql', '003_inbox_read_index.sql', '004_simulated_outbox.sql', '005_sandbox_dispatch.sql', '006_sandbox_receipts.sql', '007_nadia_simulation.sql', '008_agent_qualification.sql']) {
       await pool.query(await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), 'utf8'));
     }
     await pool.query('insert into organizations(id,name) values($1,\'Synthetic\')', [org]);
