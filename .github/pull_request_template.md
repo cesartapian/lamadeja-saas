@@ -27,7 +27,7 @@ Resultado:
 Observaciones y commits de corrección:
 
 ## Integración y límites
-- [ ] Claude Code revisa y, si aprueba y pasan los checks aplicables, realiza el merge a `main` de WhatsApp SaaS sin aprobación individual del usuario.
+- [ ] Claude Code revisa técnicamente; cualquier merge requiere autorización expresa del propietario para el SHA exacto, además de checks aprobados.
 - [ ] No se considera aprobada una revisión por silencio.
 - [ ] Live Manager no se modifica; allí solo el usuario autoriza integración a `main`.
 - [ ] La Madeja operativa y sistemas externos reales permanecen fuera del alcance de las pruebas de SaaS.
