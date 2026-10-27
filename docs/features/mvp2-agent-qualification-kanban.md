@@ -1,6 +1,6 @@
 # MVP 2 — Calificación IA especializada y bandeja Kanban (línea base para revisión Claude)
 
-**Estado: PROPUESTA — pendiente revisión funcional/técnica de Claude Code. NO autorizada para implementar hasta constancia `APROBADO PARA IMPLEMENTAR`.**
+**Estado: REVISIÓN 2 — cambios solicitados por Claude Code en PR #32 incorporados. NO autorizado para implementar hasta constancia `APROBADO PARA IMPLEMENTAR`.**
 
 ## Intención de negocio
 La atención de WhatsApp debe clasificar y acompañar al cliente mediante **agentes de IA especializados, configurables por etapa**, con supervisión de la conversación completa en un **tablero Kanban**. Se prioriza este alcance como MVP 2 antes de comercio avanzado y omnicanal. El sistema existente de WhatsApp SaaS es la base; no trasladar ni modificar los sistemas productivos La Madeja o Live Manager.
@@ -48,3 +48,43 @@ E. End-to-end sintético, seguridad, observabilidad, documentación y criterios 
 
 ## Encargo explícito a Claude Code
 **Revisar esta línea base y auditar código de repositorios.** Publicar una revisión verificable en este PR con una de dos decisiones exactas: **`APROBADO PARA IMPLEMENTAR`** o **`CAMBIOS SOLICITADOS`**, indicando hallazgos, ajustes y desglose propuesto de épicas/issues con dependencias, pruebas y prioridades. **No abrir todavía issues de construcción ni iniciar implementación sustancial** hasta completar revisión y cerrar el alcance. Mantener este PR como documento de revisión; seguir `AGENTS.md` y `PLAYBOOK.md`.
+
+
+## Adenda — ajustes por auditoría Claude Code (PR #32)
+
+### Matriz de reutilización verificada por Claude
+| Función | Repositorio/ruta | Hallazgo | Decisión/riesgo |
+|---|---|---|---|
+| Agentes y etapas | `WhatsAgent/backend/server.py`: `Agent`, `FlowStage`, `/agents`, `/stages` | MongoDB, filtros de tienda opcionales, rutas sin autenticación | Solo conceptos; reescribir en Postgres con aislamiento |
+| Cambio de etapa | `WhatsAgent/backend/server.py`: `PATCH /conversations/{id}/move-stage` | Sin transiciones validadas ni auditoría | Reescribir |
+| Ruteo | `WhatsAgent`: `get_ai_response`, `detect_intent_and_route` | Keywords y llamada IA síncrona; dependencia `emergentintegrations` | Reescribir sobre runner asíncrono existente |
+| Ejecución arbitraria | `WhatsAgent`: `POST /admin/execute-script` | JavaScript ejecutado sin autenticación | **No portar**; revisar exposición y deshabilitar si desplegado |
+| Kanban | `whatsapp-app/src/components/whatsapp/ConversationKanban.tsx` | Drag-and-drop; columnas fijas y error PATCH sin rollback | Reutilizar patrón visual, implementar estados y errores robustos |
+| Estado/agente | `whatsapp-app/migrations/schema.sql`: `state_agent_mapping` | Estados rígidos y single tenant | Concepto solamente |
+| Clasificación | `shopify-whatsapp-app/server/services/classificationService.js` | LLM JSON con fallback manual pero sin esquema validado | Reutilizar patrón de fallback, no backend |
+| Agentes | `shopify-whatsapp-app/prisma/schema.prisma` | SQLite y unicidad global no multi-tienda | Concepto solamente |
+| Identidad | `live-manager-cl` | SaaS ya verifica JWT Supabase y roles | Sin cambios en Live Manager |
+| Base segura | `lamadeja-saas`: migraciones 001–007, `processNadia.ts`, `nadiaStore.ts` | FKs tenant, idempotencia, lease y versionado | Implementar aquí |
+
+Auditoría referenciada: `whatsagent@5753c31`, `whatsapp-app@6e5a030`, `shopify-whatsapp-app@e7b6489`, `live-manager-cl@eefca45`, `lamadeja-saas@3613e1e`. Claude reporta ausencia de `LICENSE` en repos auditados y dependencia propietaria `emergentintegrations` en algunos; **no copiar backend**.
+
+### Alcance MVP 2 acotado (sustituye aspiraciones amplias anteriores)
+- Editor de agentes: **nombre, objetivo, instrucciones, etapa, activo/inactivo, modelo seleccionado de lista permitida (inicialmente NVIDIA NIM), regla de transferencia**. Fuera de MVP 2: herramientas externas, nuevas plataformas de modelos y bases de conocimiento por etapa.
+- Nadia se incorpora como una `agent_definition` general/soporte; el orquestador es independiente. **Generalizar `nadia_runs` a `agent_runs`**, conservando lease, `claim_token`, `conversation_version` y compatibilidad/regresión de Nadia.
+- Invariantes persistidas: **máximo un agente activo por conversación** (índice único parcial); transferir o pausar incrementa `conversation_version` y cancela/invalida runs y outbox pendientes. Analizar `nadia_one_inference_per_store` (límite actual una inferencia por tienda); proponer concurrencia por conversación con topes por tienda y prueba de seguridad, sin asumir capacidad infinita.
+- `messages` debe identificar autor `customer`, `agent_ai` (`agent_id`, modelo) o `human` (`user_id`). Eventos internos de clasificación, cambios de columna, pausa y handoff se guardan por separado y nunca se envían al cliente.
+- Clasificador devuelve **JSON validado por esquema**: `stage`, `intent`, `confidence` en [0,1], `reason`. Fallo de esquema o certeza baja -> requiere humano, salvo saludos o mensajes aún no clasificables: se mantienen `sin_calificar` con el agente calificador y un límite de intentos; jamás saltar a venta por simple saludo. Umbral y política de reintentos deben quedar explícitos en el plan técnico.
+- Kanban: **columnas por `etapa_negocio`** y **`estado_atencion` como indicador/filtro**. Transiciones persistidas, validadas y auditadas; errores de API restauran la tarjeta a su posición real. Vistas alternables fuera de MVP 2.
+- Medición: preparar **30 conversaciones sintéticas etiquetadas** (incluidos saludos, venta, soporte, ambigüedad, handoff) y proponer objetivo de exactitud >= 85% en casos clasificables, con 100% de derivación segura para errores/certeza baja. Política inicial propuesta: máximo **10 llamadas IA por conversación por día y 100 por tienda por día** en modo simulado; superar límite deriva a humano y registra evento. Estos números son parámetros iniciales propuestos para validación en revisión, no límites aprobados por negocio.
+- Omnicanal: `channel_connections.provider` ya prepara el modelo; **sin trabajo de canales adicionales en MVP 2**. Meta real y Shopify no son dependencias; pruebas con outbox simulado.
+
+### Épicas propuestas por Claude — NO crear issues de construcción hasta aprobación
+1. **E1 (Alta):** migración 008 aditiva: `agent_definitions`, `conversation_assignments`, `qualification_events`, `stage_transitions`, autor de mensajes. Tests FKs compuestas, aislamiento cross-tenant.
+2. **E2 (Alta, depende E1):** runner `agent_runs` + orquestación/transferencias. Tests carreras, handoff, leases vencidos, regresión Nadia.
+3. **E3 (Alta, depende E2):** agente calificador JSON validado y fallback. Tests set sintético y límites.
+4. **E4 (Media, depende E1):** API Kanban, historial y transiciones autorizadas. Tests 4xx y permisos.
+5. **E5 (Media, depende E4/E2):** UI Kanban, timeline y toma humana. Tests cancelación de run.
+6. **E6 (Media, depende E3/E5):** E2E sintético, observabilidad, límites. Tests duplicación de webhooks y fallos.
+
+### Solicitud de segunda revisión a Claude
+Revisar esta adenda como **alcance normativo**, por encima de las propuestas amplias previas del documento. Confirmar o corregir umbral de certeza, límite de intentos, concurrencia por conversación y topes iniciales; comprobar consistencia de criterios y dependencias. Registrar decisión explícita `APROBADO PARA IMPLEMENTAR` o `CAMBIOS SOLICITADOS` en PR #32. Hasta aprobación, no abrir issues de construcción ni implementar. No realizar cambios en producción, Meta real, Live Manager ni La Madeja.
