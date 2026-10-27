@@ -1,12 +1,12 @@
 # Flujo obligatorio — WhatsApp SaaS
 
 - Codex desarrolla autónomamente en ramas de trabajo y abre Pull Requests; nunca hace push directo a `main`.
-- Claude Code revisa los PR, solicita correcciones cuando corresponda y, si aprueba la revisión y pasan los controles aplicables, **Claude Code realiza el merge a `main`** del repositorio WhatsApp SaaS. No requiere autorización individual del usuario.
+- Claude Code revisa técnicamente los PR y solicita correcciones. **Ningún PR se fusiona sin autorización expresa del propietario para el SHA exacto**, aunque la revisión técnica y los checks estén aprobados. Esto incluye planes, código, CI y migraciones.
 - La revisión debe quedar registrada; una solicitud de revisión o el silencio no constituyen aprobación.
 - Codex puede planificar, implementar, refactorizar, probar y corregir dentro del alcance del SaaS sin pedir autorización por cada decisión técnica.
 - **Live Manager está fuera de alcance:** no modificar su repositorio ni su entorno. En Live Manager, solo el usuario autoriza el merge a `main`, que constituye el paso a producción en ese proyecto.
 - Mantener separados los entornos y datos: no afectar La Madeja, Live Manager ni servicios/clientes reales mediante pruebas del SaaS. Cualquier operación con impacto externo real o fuera del alcance acordado requiere decisión explícita antes de ejecutarse.
-- No introducir una autorización humana adicional para el merge a `main` de WhatsApp SaaS. Las protecciones técnicas que existan en GitHub deben respetarse, pero no se presupone que estén configuradas.
+- La aprobación funcional para implementar, la revisión técnica y la autorización del propietario para merge son decisiones separadas. Silencio, etiquetas, comentarios genéricos y aprobaciones de bots no autorizan merge. Seguir `docs/workflow/MERGE_AUTHORIZATION.md`; no asumir protecciones de rama configuradas.
 
 # Continuidad autónoma durante una tarea activa
 

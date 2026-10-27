@@ -18,7 +18,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # necesario para hacer merge
+      contents: read         # la revisión nunca puede fusionar
       pull-requests: write
       issues: write
       checks: read
@@ -42,6 +42,7 @@ jobs:
           prompt: |
             REPO: ${{ github.repository }}
             PR: #${{ github.event.pull_request.number }}
+            HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
             Eres el revisor de código. Otro agente (Codex) escribió este Pull Request.
             Tú NO modificas código: solo revisas y comentas.
@@ -69,9 +70,10 @@ jobs:
             - "❌ Requiere cambios" + lista numerada, cada punto con archivo:línea,
               qué está mal y cómo corregirlo. Escríbelo como instrucciones claras
               para que otro agente las ejecute.
-            No menciones a @codex en tu comentario.
+            Incluye al final exactamente: HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+            No menciones a @codex en tu comentario. No ejecutes merge ni auto-merge.
 
-      - name: Decidir siguiente paso (✅ merge / ❌ Codex corrige)
+      - name: Registrar revisión técnica / solicitar correcciones
         env:
           GH_TOKEN: ${{ github.token }}
           # Token personal de César: Codex solo responde a menciones de personas, no de bots
@@ -92,29 +94,14 @@ jobs:
             exit 0
           fi
 
-          # ---------- ✅ APROBADO: esperar los demás checks y hacer merge ----------
+          # La revisión técnica NO autoriza merge. El propietario debe ejecutar
+          # owner-authorized-merge con PR y SHA exacto, una vez que CI termine.
           if [[ "$ULTIMO" == ✅* ]]; then
-            echo "Aprobado. Esperando que terminen los demás checks..."
-            for i in $(seq 1 60); do   # hasta ~15 minutos
-              CHECKS=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate --jq '.check_runs[] | select(.name != "revisar") | [.status, (.conclusion // "")] | @tsv')
-              PENDIENTES=$(echo "$CHECKS" | grep -v "^$" | grep -cv '^completed' || true)
-              FALLIDOS=$(echo "$CHECKS" | grep -cE 'failure|cancelled|timed_out|action_required' || true)
-              if [ "$FALLIDOS" -gt 0 ]; then
-                gh pr comment "$PR" --body "⚠️ Claude aprobó, pero hay checks fallidos (tests/build). No hago merge: revisa el PR."
-                exit 0
-              fi
-              [ "$PENDIENTES" -eq 0 ] && break
-              sleep 15
-            done
-            if [ "$PENDIENTES" -gt 0 ]; then
-              gh pr comment "$PR" --body "⚠️ Claude aprobó, pero los checks no terminaron a tiempo. No hago merge automático."
-              exit 0
-            fi
-            if gh pr merge "$PR" --merge --match-head-commit "$SHA"; then
-              echo "Merge realizado."
-            else
-              gh pr comment "$PR" --body "⚠️ Claude aprobó, pero el merge automático falló (conflictos, rama protegida o PR que modifica workflows). Requiere merge manual."
-            fi
+            echo "Revisión técnica aprobada. Falta autorización explícita del propietario para este SHA."
+            exit 0
+          fi
+          if [[ "$ULTIMO" != ❌* ]]; then
+            echo "Formato de revisión no reconocido; no actuar."
             exit 0
           fi
 
