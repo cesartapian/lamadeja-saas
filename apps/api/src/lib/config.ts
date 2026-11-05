@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw new Error('TLS verification must remain enabled');
 const schema = z.object({
+  PILOT_READ_ONLY: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
+  DATABASE_CA_PEM: z.string().min(1).optional(),
   WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(5000),
   OUTBOX_MODE: z.enum(['disabled', 'simulated']).default('disabled'),
