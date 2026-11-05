@@ -1,6 +1,6 @@
 # Vercel pilot deployment
 
-The repository root deploys the Vite frontend and `/api/*` Express routes together. `api/[...path].ts` forces read-only mode before importing configuration, does not bind a port and does not start workers. Existing persistent API/worker entry points remain available for a later full deployment.
+The repository root deploys the Vite frontend and `/api/*` Express routes together. `api/index.ts` forces read-only mode before importing configuration, does not bind a port and does not start workers. Existing persistent API/worker entry points remain available for a later full deployment.
 
 Required private Vercel runtime variables: `DATABASE_URL`, `DATABASE_CA_PEM` (official Supabase root CA content, never a PC file path), `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ALLOWED_EMAILS`, `MVP_ORGANIZATION_ID`, `MVP_STORE_ID`, `WEB_ORIGIN`, and synthetic `META_APP_SECRET` / `META_VERIFY_TOKEN` satisfying existing configuration validation. Keep `OUTBOX_MODE` and `NADIA_MODE` disabled. Do not upload local `.env` files or any production credentials.
 
@@ -11,3 +11,6 @@ Select the existing development Supabase project only. For IPv4 Vercel runtimes 
 After the origin exists, allow its `/auth/callback` in Supabase, verify `/api/health`, anonymous/forged JWT rejection, real Google identity and membership, and authenticated inbox reading. The pilot disables inbound webhooks and all outbox/Nadia mutation routes regardless of simulation settings. A pilot with read-only data is not a deployed worker or a live WhatsApp integration.
 
 LiveManager activation is a separate PR and build configuration. Publish its entry only after this deployment and Claude review pass. No paid resource provisioning is part of this change.
+
+Routing: Vercel routes every /api/:path* request to the single /api function. A catch-all filename alone matched only one segment in the first published build, which left message history/capability paths at platform 404. Verify nested paths after deployment; anonymous requests must reach Express and return 401 rather than a Vercel 404.
+
